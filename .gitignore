@@ -1,0 +1,12 @@
+build/
+vcpkg_installed/
+out/
+CMakeUserPresets.json
+.vs/
+*.pdb
+*.ilk
+*.user
+.cache/
+.DS_Store
+Thumbs.db
+imgui.ini

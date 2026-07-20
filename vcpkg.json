@@ -1,0 +1,19 @@
+{
+  "name": "prism-viewer",
+  "version-string": "0.1.0",
+  "description": "棱镜模型查看器 — 轻量 3D 模型浏览器",
+  "dependencies": [
+    "glfw3",
+    "glew",
+    "glm",
+    {
+      "name": "imgui",
+      "features": [
+        "glfw-binding",
+        "opengl3-binding",
+        "docking-experimental"
+      ]
+    },
+    "stb"
+  ]
+}
