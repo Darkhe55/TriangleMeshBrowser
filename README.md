@@ -213,9 +213,7 @@ TriangleMeshBrowser/
 
 ### This Project
 
-All source code in `src/`, the shaders in `src/renderer/shaders/`, the sample models in `assets/models/`, and the build scripts (`build.ps1`, `setup.ps1`) are original work.
-
-*(You may choose and add your own license here. Suggested: MIT, Apache-2.0, or GPL-3.0.)*
+All source code in `src/`, the shaders in `src/renderer/shaders/`, the sample models in `assets/models/`, and the build scripts (`build.ps1`, `setup.ps1`) are licensed under the **MIT License** — see [LICENSE](LICENSE) for the full text.
 
 ### Third-Party Libraries
 
