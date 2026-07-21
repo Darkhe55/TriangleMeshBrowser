@@ -31,7 +31,7 @@ struct VertKeyHash {
     }
 };
 
-std::unique_ptr<Mesh> loadOBJ(const std::string& path) {
+std::unique_ptr<Mesh> loadOBJ(const std::filesystem::path& path) {
     std::string text = readFileText(path);
     auto mesh = std::make_unique<Mesh>();
     mesh->name = getFileName(path);
@@ -123,7 +123,7 @@ std::unique_ptr<Mesh> loadOBJ(const std::string& path) {
     }
 
     if (mesh->vertices_.empty() || mesh->indices_.empty()) {
-        throw std::runtime_error("OBJ has no triangles: " + path);
+        throw std::runtime_error("OBJ has no triangles: " + wideToUtf8(path.wstring()));
     }
     mesh->triangleCount = static_cast<std::uint32_t>(mesh->indices_.size() / 3);
 

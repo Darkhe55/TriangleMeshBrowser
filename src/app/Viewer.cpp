@@ -34,7 +34,7 @@ namespace prism {
 // (normalMatrix removed; mesh has uniform scale so no normal matrix needed)
 
 static std::string shaderPath(const std::string& name) {
-    return joinPath(resourcePath("shaders"), name);
+    return joinPath(resourcePath("shaders"), name).string();
 }
 
 // ---------- ctor / dtor ----------
@@ -158,7 +158,7 @@ void Viewer::loadShaders() {
     }
 }
 
-bool Viewer::loadModel(const std::string& path) {
+bool Viewer::loadModel(const std::filesystem::path& path) {
     try {
         auto m = ModelLoader::load(path);
         m->centerAndScale(1.0f);
@@ -170,7 +170,10 @@ bool Viewer::loadModel(const std::string& path) {
         state_.highlightedFace.reset();
         return true;
     } catch (const std::exception& e) {
-        uiReq_.toast = std::string("加载失败: ") + e.what();
+        // toast 文本用 UTF-8(wstring → UTF-8 转换), 避免窄字符串里塞宽字符
+        std::string msg = "加载失败: ";
+        msg += e.what();
+        uiReq_.toast = std::move(msg);
         return false;
     }
 }
@@ -204,7 +207,13 @@ void Viewer::clearModel() {
 // ---------- callbacks ----------
 void Viewer::dropCallback(GLFWwindow* w, int pathCount, const char* paths[]) {
     auto* self = reinterpret_cast<Viewer*>(glfwGetWindowUserPointer(w));
-    if (pathCount > 0) self->dropFile_ = paths[0];
+    if (pathCount <= 0 || !paths[0]) return;
+    // GLFW 在 Windows 上给的是 ANSI(CP_ACP)字节,直接喂给 std::ifstream 会触发
+    // 一次 ANSI→UTF-16 转换,某些字符(包括很多 GBK 码点)会触发 ERROR_NO_UNICODE_TRANSLATION
+    // (1113, "no mapping for the Unicode character exists")。
+    // 先用 MultiByteToWideChar 转成宽字符,再构造 fs::path,这样 std::ifstream 内部直接拿
+    // UTF-16 路径,不经过 ANSI→UTF-16 转换,中文/日文路径都能开。
+    self->dropFile_ = std::filesystem::path(ansiToWide(paths[0]));
 }
 
 void Viewer::keyCallback(GLFWwindow* w, int key, int /*scancode*/, int action, int mods) {
@@ -360,7 +369,8 @@ void Viewer::handleUiRequest() {
         ofn.nFilterIndex = 1;
         ofn.Flags = OFN_PATHMUSTEXIST | OFN_FILEMUSTEXIST;
         if (GetOpenFileNameA(&ofn)) {
-            loadModel(szFile);
+            // 同 drop: ANSI→wide→fs::path, 避免 std::ifstream 内部转码失败
+            loadModel(std::filesystem::path(ansiToWide(szFile)));
         }
     }
     if (uiReq_.exportScreenshot) {

@@ -5,6 +5,7 @@
 #include <iostream>
 #include <stdexcept>
 #include <string>
+#include <filesystem>
 
 int main(int argc, char* argv[]) {
     try {
@@ -15,8 +16,11 @@ int main(int argc, char* argv[]) {
             // 去掉引号
             if (arg.size() >= 2 && arg.front() == '"' && arg.back() == '"')
                 arg = arg.substr(1, arg.size() - 2);
-            if (!viewer.loadModel(arg)) {
-                std::cerr << "无法加载: " << arg << "\n";
+            // argv 在 Windows 上是 ANSI 字节,转成 wide 再构 fs::path,
+            // 与 drag-drop 走同一条路径,保证中文参数也能开
+            std::filesystem::path p(prism::ansiToWide(arg));
+            if (!viewer.loadModel(p)) {
+                std::cerr << "无法加载: " << prism::wideToUtf8(p.wstring()) << "\n";
             }
         }
 
