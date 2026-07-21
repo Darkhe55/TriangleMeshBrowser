@@ -9,9 +9,9 @@
 
 namespace prism {
 
-std::unique_ptr<Mesh> loadOFF(const std::string& path) {
+std::unique_ptr<Mesh> loadOFF(const std::filesystem::path& path) {
     std::ifstream f(path);
-    if (!f) throw std::runtime_error("Cannot open OFF: " + path);
+    if (!f) throw std::runtime_error("Cannot open OFF: " + wideToUtf8(path.wstring()));
 
     auto mesh = std::make_unique<Mesh>();
     mesh->name = getFileName(path);
@@ -20,7 +20,7 @@ std::unique_ptr<Mesh> loadOFF(const std::string& path) {
     std::string header;
     f >> header;
     if (header != "OFF" && header != "COFF" && header != "NOFF" && header != "CNOFF")
-        throw std::runtime_error("Not an OFF file: " + path);
+        throw std::runtime_error("Not an OFF file: " + wideToUtf8(path.wstring()));
 
     // COFF/NOFF 可能有更多 header
     std::uint32_t vCount = 0, fCount = 0, eCount = 0;
@@ -76,7 +76,7 @@ std::unique_ptr<Mesh> loadOFF(const std::string& path) {
     }
 
     if (mesh->vertices_.empty() || mesh->indices_.empty())
-        throw std::runtime_error("OFF empty: " + path);
+        throw std::runtime_error("OFF empty: " + wideToUtf8(path.wstring()));
     mesh->triangleCount = static_cast<std::uint32_t>(mesh->indices_.size() / 3);
 
     bool needCompute = false;

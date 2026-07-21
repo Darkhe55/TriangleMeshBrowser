@@ -10,6 +10,7 @@
 #include "../renderer/FrameBuffer.h"
 #include "../renderer/Grid.h"
 #include "../ui/Panel.h"
+#include <filesystem>
 #include <memory>
 #include <string>
 #include <array>
@@ -27,7 +28,7 @@ public:
     Viewer(const Viewer&)            = delete;
     Viewer& operator=(const Viewer&) = delete;
 
-    bool loadModel(const std::string& path);
+    bool loadModel(const std::filesystem::path& path);
     void generateGeometry(int idx);
     void clearModel();
 
@@ -51,8 +52,8 @@ private:
     OrbitCamera                   cam_;
     UiRequest                     uiReq_;
 
-    // 拖拽文件
-    std::string                   dropFile_;
+    // 拖拽文件(fs::path 内部就是 UTF-16 宽字符,直接喂给 std::ifstream 不会触发 ANSI→UTF-16 转换)
+    std::filesystem::path         dropFile_;
 
     // Shaders
     Shader                        shaderMesh_;

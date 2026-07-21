@@ -85,9 +85,9 @@ static std::unique_ptr<Mesh> loadSTL_Binary(std::ifstream& f, const std::string&
     return mesh;
 }
 
-std::unique_ptr<Mesh> loadSTL(const std::string& path) {
+std::unique_ptr<Mesh> loadSTL(const std::filesystem::path& path) {
     std::ifstream f(path, std::ios::binary);
-    if (!f) throw std::runtime_error("Cannot open STL: " + path);
+    if (!f) throw std::runtime_error("Cannot open STL: " + wideToUtf8(path.wstring()));
     std::string name = getFileName(path);
 
     // 探测 ASCII / Binary

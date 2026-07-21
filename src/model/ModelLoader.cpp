@@ -14,7 +14,7 @@ const std::vector<std::string>& ModelLoader::supportedExtensions() {
     return exts;
 }
 
-std::unique_ptr<Mesh> ModelLoader::load(const std::string& filepath) {
+std::unique_ptr<Mesh> ModelLoader::load(const std::filesystem::path& filepath) {
     std::string ext = getExtension(filepath);
     if (ext == ".obj") return loadOBJ(filepath);
     if (ext == ".stl") return loadSTL(filepath);

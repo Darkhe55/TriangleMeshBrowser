@@ -29,9 +29,9 @@ static int typeSize(const std::string& t) {
     return 4;
 }
 
-std::unique_ptr<Mesh> loadPLY(const std::string& path) {
+std::unique_ptr<Mesh> loadPLY(const std::filesystem::path& path) {
     std::ifstream f(path, std::ios::binary);
-    if (!f) throw std::runtime_error("Cannot open PLY: " + path);
+    if (!f) throw std::runtime_error("Cannot open PLY: " + wideToUtf8(path.wstring()));
     std::string name = getFileName(path);
 
     // --- header ---
@@ -79,7 +79,7 @@ std::unique_ptr<Mesh> loadPLY(const std::string& path) {
         }
     }
 
-    if (vCount == 0) throw std::runtime_error("PLY: no vertices: " + path);
+    if (vCount == 0) throw std::runtime_error("PLY: no vertices: " + wideToUtf8(path.wstring()));
 
     // 算 vertex 属性偏移
     int off = 0;
@@ -100,7 +100,7 @@ std::unique_ptr<Mesh> loadPLY(const std::string& path) {
     int piNY = findProp(vProps, "ny");
     int piNZ = findProp(vProps, "nz");
     if (piX < 0 || piY < 0 || piZ < 0)
-        throw std::runtime_error("PLY: missing x/y/z: " + path);
+        throw std::runtime_error("PLY: missing x/y/z: " + wideToUtf8(path.wstring()));
 
     auto mesh = std::make_unique<Mesh>();
     mesh->name = name;
@@ -182,7 +182,7 @@ std::unique_ptr<Mesh> loadPLY(const std::string& path) {
     }
 
     if (mesh->indices_.empty())
-        throw std::runtime_error("PLY: no faces: " + path);
+        throw std::runtime_error("PLY: no faces: " + wideToUtf8(path.wstring()));
     mesh->triangleCount = static_cast<std::uint32_t>(mesh->indices_.size() / 3);
     if (!hasNormals) mesh->computeNormals();
     mesh->computeBBox();
