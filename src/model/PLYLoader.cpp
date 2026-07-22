@@ -137,26 +137,69 @@ std::unique_ptr<Mesh> loadPLY(const std::filesystem::path& path) {
                 mesh->indices_.push_back(idx);
             }
         }
-    } else if (format == "binary_little_endian") {
+    } else if (format == "binary_little_endian" || format == "binary_big_endian") {
+        const bool bigEndian = (format == "binary_big_endian");
+        // 单字节翻转模板(单字节不需要 swap)
+        auto bswap2 = [](std::uint16_t v) -> std::uint16_t {
+            return static_cast<std::uint16_t>((v >> 8) | (v << 8));
+        };
+        auto bswap4 = [](std::uint32_t v) -> std::uint32_t {
+            return  ((v & 0x000000FFu) << 24)
+                  | ((v & 0x0000FF00u) << 8)
+                  | ((v & 0x00FF0000u) >> 8)
+                  | ((v & 0xFF000000u) >> 24);
+        };
+        auto bswap8 = [](std::uint64_t v) -> std::uint64_t {
+            return  ((v & 0x00000000000000FFull) << 56)
+                  | ((v & 0x000000000000FF00ull) << 40)
+                  | ((v & 0x0000000000FF0000ull) << 24)
+                  | ((v & 0x00000000FF000000ull) << 8)
+                  | ((v & 0x000000FF00000000ull) >> 8)
+                  | ((v & 0x0000FF0000000000ull) >> 24)
+                  | ((v & 0x00FF000000000000ull) >> 40)
+                  | ((v & 0xFF00000000000000ull) >> 56);
+        };
+
         std::vector<std::uint8_t> buf(vStride);
         for (std::uint32_t i = 0; i < vCount; ++i) {
             f.read(reinterpret_cast<char*>(buf.data()), vStride);
             auto get = [&](int idx) -> float {
                 const auto& p = vProps[idx];
                 if (p.type == "float" || p.type == "float32") {
-                    float v; std::memcpy(&v, buf.data() + p.offset, 4); return v;
+                    std::uint32_t raw; std::memcpy(&raw, buf.data() + p.offset, 4);
+                    if (bigEndian) raw = bswap4(raw);
+                    float v; std::memcpy(&v, &raw, 4); return v;
                 }
                 if (p.type == "double" || p.type == "float64") {
-                    double v; std::memcpy(&v, buf.data() + p.offset, 8); return static_cast<float>(v);
+                    std::uint64_t raw; std::memcpy(&raw, buf.data() + p.offset, 8);
+                    if (bigEndian) raw = bswap8(raw);
+                    double v; std::memcpy(&v, &raw, 8); return static_cast<float>(v);
                 }
                 if (p.type == "int" || p.type == "int32") {
-                    int32_t v; std::memcpy(&v, buf.data() + p.offset, 4); return static_cast<float>(v);
+                    std::uint32_t raw; std::memcpy(&raw, buf.data() + p.offset, 4);
+                    if (bigEndian) raw = bswap4(raw);
+                    int32_t v; std::memcpy(&v, &raw, 4); return static_cast<float>(v);
+                }
+                if (p.type == "uint" || p.type == "uint32") {
+                    std::uint32_t raw; std::memcpy(&raw, buf.data() + p.offset, 4);
+                    if (bigEndian) raw = bswap4(raw);
+                    return static_cast<float>(raw);
                 }
                 if (p.type == "uchar" || p.type == "uint8") {
-                    uint8_t v = buf[p.offset]; return static_cast<float>(v);
+                    return static_cast<float>(buf[p.offset]);
+                }
+                if (p.type == "char" || p.type == "int8") {
+                    return static_cast<float>(static_cast<int8_t>(buf[p.offset]));
+                }
+                if (p.type == "ushort" || p.type == "uint16") {
+                    std::uint16_t raw; std::memcpy(&raw, buf.data() + p.offset, 2);
+                    if (bigEndian) raw = bswap2(raw);
+                    return static_cast<float>(raw);
                 }
                 if (p.type == "short" || p.type == "int16") {
-                    int16_t v; std::memcpy(&v, buf.data() + p.offset, 2); return static_cast<float>(v);
+                    std::uint16_t raw; std::memcpy(&raw, buf.data() + p.offset, 2);
+                    if (bigEndian) raw = bswap2(raw);
+                    int16_t v; std::memcpy(&v, &raw, 2); return static_cast<float>(v);
                 }
                 return 0.f;
             };
@@ -174,6 +217,7 @@ std::unique_ptr<Mesh> loadPLY(const std::filesystem::path& path) {
             for (int k = 0; k < n; ++k) {
                 std::uint32_t idx;
                 f.read(reinterpret_cast<char*>(&idx), 4);
+                if (bigEndian) idx = bswap4(idx);
                 mesh->indices_.push_back(idx);
             }
         }
