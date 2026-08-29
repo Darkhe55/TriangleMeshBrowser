@@ -26,7 +26,7 @@ void OrbitCamera::onMouseDragRotate(float dx, float dy,
     float sx = invertX ? -1.f : 1.f;
     float sy = invertY ? -1.f : 1.f;
     yaw   += dx * kSens * sx;
-    pitch -= dy * kSens * sy;  // pitch 默认 dy 向上为正(屏幕 y 向下)
+    pitch -= dy * kSens * sy;  // 屏幕 y 轴向下
     pitch = std::clamp(pitch, -89.0f, 89.0f);
     // wrap yaw
     while (yaw   >  180.f) yaw   -= 360.f;
@@ -38,7 +38,7 @@ void OrbitCamera::onMouseDragPan(float dx, float dy) noexcept {
     float dist = std::max(distance, 0.01f);
     float worldPerPixel = 2.0f * std::tan(glm::radians(fovDeg) * 0.5f) * dist
                           / static_cast<float>(std::max(viewportH, 1));
-    // 计算 right/up 前应用累积的 target offset,以保持一致性
+    // 先应用累积的平移量
     _applyTarget();
     glm::vec3 delta = -right()   * (dx * worldPerPixel)
                      +  up()     * (dy * worldPerPixel);

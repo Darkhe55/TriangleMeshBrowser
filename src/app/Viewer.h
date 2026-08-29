@@ -52,7 +52,7 @@ private:
     OrbitCamera                   cam_;
     UiRequest                     uiReq_;
 
-    // 拖拽文件(fs::path 内部就是 UTF-16 宽字符,直接喂给 std::ifstream 不会触发 ANSI→UTF-16 转换)
+    // 拖拽打开的模型文件路径(待加载)
     std::filesystem::path         dropFile_;
 
     // Shaders

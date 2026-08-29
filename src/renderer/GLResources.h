@@ -1,9 +1,5 @@
 // src/renderer/GLResources.h
-// RAII 包装所有 OpenGL 资源 - 零裸指针泄漏,析构自动释放
-//
-// 用自定义 GLHandle<TDeleter> 而非 std::unique_ptr<GLuint, TDeleter>:
-// std::unique_ptr 默认 pointer = T*,没法让 pointer = GLuint
-// (用 `using pointer = GLuint` 会让 reset(nullptr) 报 nullptr->int 转换错误)
+// OpenGL 资源 RAII 包装
 #pragma once
 
 #include <GL/glew.h>
@@ -38,7 +34,7 @@ public:
     GLuint get() const noexcept { return id_; }
     explicit operator bool() const noexcept { return id_ != 0; }
 
-    // comparison with raw GLuint for `if (ptr != 0)` style
+    // 与裸 GLuint 比较
     bool operator==(GLuint v) const noexcept { return id_ == v; }
     bool operator!=(GLuint v) const noexcept { return id_ != v; }
 

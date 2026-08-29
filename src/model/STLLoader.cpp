@@ -42,7 +42,7 @@ static std::unique_ptr<Mesh> loadSTL_ASCII(std::istream& in, const std::string& 
                 mesh->vertices_.push_back({verts[vIdx], normal});
                 ++vIdx;
             } else {
-                // 防御性:多余 vertex
+                // 多余 vertex
                 glm::vec3 dummy;
                 in >> dummy.x >> dummy.y >> dummy.z;
             }
@@ -94,28 +94,26 @@ std::unique_ptr<Mesh> loadSTL(const std::filesystem::path& path) {
     char header[6] = {0};
     f.read(header, 5);
     if (std::memcmp(header, "solid", 5) == 0) {
-        // 可能是 ASCII。但很多 Binary 文件也以 "solid" 开头
-        // 进一步检查:跳到 token "facet" 之前是否还有非 ASCII 字符
+        // 区分同样以 "solid" 开头的二进制文件:
+        // 校验文件大小是否符合二进制布局 (84 + triCount * 50)
         f.seekg(0, std::ios::end);
         std::streampos end = f.tellg();
-        std::streampos dataSize = end - std::streampos(84);
 
-        // 跳到第 80 字节处尝试读 triCount
         f.seekg(80, std::ios::beg);
         std::uint32_t triCount = 0;
         f.read(reinterpret_cast<char*>(&triCount), 4);
         std::streampos expected = std::streampos(84) + std::streampos(static_cast<std::int64_t>(triCount) * 50);
         if (end == expected) {
-            // 几乎肯定是 Binary
+            // 尺寸匹配二进制布局
             f.seekg(80, std::ios::beg);
             return loadSTL_Binary(f, name, triCount);
         }
-        // 当 ASCII 处理
+        // 按 ASCII 处理
         f.clear();
         f.seekg(0, std::ios::beg);
         return loadSTL_ASCII(f, name);
     }
-    // 直接 Binary
+    // 按 Binary 处理
     f.seekg(80, std::ios::beg);
     std::uint32_t triCount = 0;
     f.read(reinterpret_cast<char*>(&triCount), 4);

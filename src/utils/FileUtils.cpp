@@ -16,20 +16,19 @@ namespace prism {
 std::wstring ansiToWide(const std::string& ansiPath) {
 #ifdef _WIN32
     if (ansiPath.empty()) return std::wstring{};
-    // 先按系统代码页(中文 Windows = CP936/GBK)解码 — 这正是 GLFW GetOpenFileNameA
-    // 以及 Windows 资源管理器拖拽时给到的字节流
+    // 按系统代码页解码
     UINT codePage = CP_ACP;
     int wlen = MultiByteToWideChar(codePage, 0, ansiPath.c_str(),
                                    static_cast<int>(ansiPath.size()),
                                    nullptr, 0);
     if (wlen <= 0) {
-        // 退路:当 UTF-8 再试(有些工具链会直接给 UTF-8 字节)
+        // 退路: 按 UTF-8 重试
         codePage = CP_UTF8;
         wlen = MultiByteToWideChar(codePage, 0, ansiPath.c_str(),
                                    static_cast<int>(ansiPath.size()),
                                    nullptr, 0);
         if (wlen <= 0) {
-            // 真的救不回来:逐字节硬塞,至少 std::ifstream 还能拿到一个 fallback
+            // 无法恢复: 逐字节回退
             return std::wstring{ansiPath.begin(), ansiPath.end()};
         }
     }
@@ -65,7 +64,6 @@ std::string wideToUtf8(const std::wstring& widePath) {
 }
 
 std::string readFileText(const fs::path& path) {
-    // 用 wstring 路径直接打开,绕开 ANSI→UTF-16 转换
     std::ifstream f(path, std::ios::binary);
     if (!f) throw std::runtime_error("Cannot open file: " + wideToUtf8(path.wstring()));
     std::ostringstream ss;

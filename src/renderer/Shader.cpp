@@ -16,7 +16,7 @@ GLint Shader::uniformLocation(const char* name) const noexcept {
 }
 
 static std::string slurp(const std::string& path) {
-    return readFileText(path);  // FileUtils 提供
+    return readFileText(path);
 }
 
 static GLuint compileShader(GLenum type, const std::string& src, const std::string& tag) {
@@ -47,7 +47,7 @@ void Shader::compileFromFiles(const std::string& vert, const std::string& frag) 
     glAttachShader(prog, vs);
     glAttachShader(prog, fs);
     glLinkProgram(prog);
-    glDeleteShader(vs);   // linked, no longer needed
+    glDeleteShader(vs);
     glDeleteShader(fs);
 
     GLint ok = GL_FALSE;
@@ -61,7 +61,6 @@ void Shader::compileFromFiles(const std::string& vert, const std::string& frag) 
         throw std::runtime_error("Shader link failed:\n" + log);
     }
     program_.reset(prog);
-    // warm up location cache
     locMat4_ = uniformLocation("uProjection");
     locMat3_ = uniformLocation("uNormalMatrix");
     locVec3_ = uniformLocation("uBaseColor");

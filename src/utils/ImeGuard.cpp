@@ -11,7 +11,7 @@
 #pragma comment(lib, "imm32.lib")
 #endif
 
-// imgui 1.92: ImGuiContext 在 imgui.h 是 opaque,InputTextState 在 imgui_internal.h
+// InputTextState 定义于 imgui_internal.h
 #include <imgui.h>
 #include <imgui_internal.h>
 
@@ -22,7 +22,7 @@ namespace {
     void* s_prevHimc = nullptr;
     // 当前关联的窗口句柄
     HWND  s_hwnd     = nullptr;
-    // 上一次用户希望的 IME 状态(避免每帧重复调 ImmAssociateContext)
+    // 当前 IME 启用状态
     bool  s_enabled  = false;
 }
 
@@ -32,11 +32,11 @@ void ImeGuard::disable(GLFWwindow* w) {
     HWND hwnd = glfwGetWin32Window(w);
     if (!hwnd) return;
     if (hwnd != s_hwnd) {
-        // 第一次 disable 这窗口:记下旧的 HIMC 以便 enable 恢复
+        // 记录旧 HIMC 以便恢复
         s_prevHimc = ImmAssociateContext(hwnd, nullptr);
         s_hwnd     = hwnd;
     } else {
-        // 重复 disable:只需保证关
+        // 确保关闭
         ImmAssociateContext(hwnd, nullptr);
     }
     s_enabled = false;
@@ -49,7 +49,7 @@ void ImeGuard::enable(GLFWwindow* w) {
     HWND hwnd = glfwGetWin32Window(w);
     if (!hwnd) return;
     if (hwnd != s_hwnd || s_prevHimc == nullptr) {
-        // 没 disable 过这窗口 / 没有保留的旧 context → 让系统重建
+        // 无可恢复的 context: 新建
         HIMC fresh = ImmCreateContext();
         if (fresh) {
             ImmAssociateContext(hwnd, fresh);
@@ -64,14 +64,14 @@ void ImeGuard::enable(GLFWwindow* w) {
 }
 
 void ImeGuard::setEnabled(GLFWwindow* w, bool wantIme) {
-    if (wantIme == s_enabled) return;  // 已是目标状态,跳过
+    if (wantIme == s_enabled) return;
     if (wantIme) enable(w);
     else         disable(w);
 }
 
 void ImeGuard::syncWithImGui(GLFWwindow* w) {
     if (!w) return;
-    // ImGui 1.92: InputTextState.ID != 0 表示有 InputText/InputTextMultiline 处于 active 编辑态
+    // InputTextState.ID != 0 表示有文本输入处于编辑态
     ImGuiContext* ctx = ImGui::GetCurrentContext();
     bool wantIme = ctx && ctx->InputTextState.ID != 0;
     setEnabled(w, wantIme);

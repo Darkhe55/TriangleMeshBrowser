@@ -25,7 +25,7 @@ public:
     float yaw   = 45.f;   // 度
     float pitch = 30.f;   // 度
     float distance = 3.0f;
-    mutable glm::vec3 target{0.f};   // mutable: _applyTarget 在 const 上下文里延迟应用
+    mutable glm::vec3 target{0.f};   // 延迟应用
     float fovDeg  = 45.f;
     float nearZ   = 0.05f;
     float farZ    = 1000.f;

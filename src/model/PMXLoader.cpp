@@ -4,11 +4,8 @@
 //   模型名与注释(长度前缀文本) + 顶点 + 面索引 + [纹理/材质/骨骼/...]
 // 本加载器只关心几何:解析到面索引为止,后面的块直接忽略。
 //
-// 坐标系: MMD 为左手系、+Y 朝上;本查看器为右手系、+Z 朝上(网格在 xOy 平面)。
-// 顶点/法线做变换 (x, y, z) -> (x, z, y):
-//   等价于 "取反 Z(左手→右手) + 绕 X 轴转 90°(+Y 朝上 → +Z 朝上)",
-//   行列式为 -1,完成手性转换;模型头顶(+Y)落到查看器上方(+Z),
-//   左右(+X)保持不变、不镜像。索引顺序保持原样(查看器未开面剔除)。
+// 坐标系: 将 MMD 的左手系(+Y 上)转换到本查看器的右手系(+Z 上),
+// 顶点/法线做变换 (x, y, z) -> (x, z, y)。
 #include "PMXLoader.h"
 #include "../utils/FileUtils.h"
 #include <glm/glm.hpp>
@@ -67,7 +64,7 @@ std::string readText(Reader& r, std::uint8_t encoding) {
     r.need(static_cast<size_t>(len));
     std::string out;
     if (encoding == 0) {
-        // UTF-16LE → wstring → UTF-8(wchar_t 在 Windows 上是 2 字节,与小端码元一致)
+        // UTF-16LE → wstring → UTF-8
         std::wstring w;
         w.resize(static_cast<size_t>(len) / 2);
         for (size_t i = 0; i < w.size(); ++i)
@@ -115,7 +112,7 @@ std::unique_ptr<Mesh> loadPMX(const std::filesystem::path& path) {
     const std::uint8_t extraUvCount = r.data[r.pos + 1];  // 0..4
     const std::uint8_t vIdxSize     = r.data[r.pos + 2];  // 顶点索引字节数 1/2/4
     const std::uint8_t boneIdxSize  = r.data[r.pos + 5];
-    r.pos += globalCount;  // 剩余(纹理/材质/变形/刚体索引字节数, 2.1 软体标志)不需要
+    r.pos += globalCount;  // 跳过纹理/材质/变形/刚体索引字节数与 2.1 软体标志
 
     // --- 模型名/注释: 日文名, 英文名, 日文注释, 英文注释 ---
     const std::string nameJp = readText(r, encoding);
@@ -151,7 +148,7 @@ std::unique_ptr<Mesh> loadPMX(const std::filesystem::path& path) {
         }
         r.skip(sizeof(float));  // 边缘缩放
 
-        // 左手系 Y 朝上 → 右手系 Z 朝上: (x, y, z) -> (x, z, y),让模型站在地面网格上
+        // 左手系 Y 朝上 → 右手系 Z 朝上: (x, y, z) -> (x, z, y)
         v.position = { v.position.x, v.position.z, v.position.y };
         v.normal   = { v.normal.x,   v.normal.z,   v.normal.y };
         if (glm::length(v.normal) < 1e-8f) v.normal = glm::vec3(0.f, 0.f, 1.f);

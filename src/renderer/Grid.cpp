@@ -24,7 +24,7 @@ void Grid::upload() {
     verts.reserve(static_cast<size_t>((2 * halfExtent_ / step_ + 1) * 4) + 4);
 
     const glm::vec3 minorCol(0.30f, 0.30f, 0.36f);  // 副线
-    const glm::vec3 majorCol(0.55f, 0.55f, 0.65f);  // 主线(X=0 / Z=0)
+    const glm::vec3 majorCol(0.55f, 0.55f, 0.65f);  // 主线(X=0 / Y=0)
 
     // 网格画在 xOy 平面 (Z=0, 即地面);Z 轴朝上。
     // 平行 X 轴的线 (y = const),Z=0

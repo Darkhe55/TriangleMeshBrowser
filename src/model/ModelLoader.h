@@ -12,7 +12,7 @@ namespace prism {
 
 class ModelLoader {
 public:
-    // 自动按扩展名分发(用 fs::path 内部直接拿 wide-char 路径,兼容中文路径)
+    // 自动按扩展名分发
     static std::unique_ptr<Mesh> load(const std::filesystem::path& filepath);
 
     // 支持的扩展名

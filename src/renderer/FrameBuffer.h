@@ -23,7 +23,7 @@ public:
 
     bool valid() const noexcept { return fbo_ != 0 && tex_ != 0; }
 
-    // 读出 RGBA 像素 (调用方负责 delete[])
+    // 读出 RGBA 像素
     bool readPixels(std::vector<std::uint8_t>& out) const;
 
 private:

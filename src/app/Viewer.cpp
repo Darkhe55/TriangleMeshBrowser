@@ -21,7 +21,7 @@
 #include <cstdint>
 #include <ctime>
 
-// Windows 头文件 - 必须放 GLFW 之后
+// Windows 头文件
 #ifdef _WIN32
 #include <windows.h>
 #include <commdlg.h>
@@ -31,7 +31,6 @@
 namespace prism {
 
 // ---------- helpers ----------
-// (normalMatrix removed; mesh has uniform scale so no normal matrix needed)
 
 static std::string shaderPath(const std::string& name) {
     return joinPath(resourcePath("shaders"), name).string();
@@ -44,7 +43,8 @@ Viewer::Viewer(int w, int h, const std::string& title)
     initImGui();
     loadShaders();
     cam_.viewportW = w; cam_.viewportH = h;
-    // 默认关闭 Windows IME,防止 WASD/快捷键时弹候选框遮挡
+    // 默认关闭 IME
+    ImeGuard::disable(window_);
     ImeGuard::disable(window_);
 }
 
@@ -106,14 +106,13 @@ void Viewer::initImGui() {
     st.WindowRounding = 4.0f;
     st.FrameRounding  = 3.0f;
     st.Colors[ImGuiCol_WindowBg] = ImVec4(0.08f, 0.08f, 0.10f, 0.92f);
-    // Scale widget sizes to match the 24px font (default 13px -> ~1.85x).
+    // 控件尺寸随大字体缩放
     st.ScaleAllSizes(1.5f);
 
     ImGui_ImplGlfw_InitForOpenGL(window_, true);
     ImGui_ImplOpenGL3_Init("#version 330 core");
 
-    // 尝试加载中文字体(Roboto/CJK 兜底)
-    // 找系统字体;失败就用默认
+    // 加载中文字体;失败时用默认字体
     auto tryLoad = [&](const char* p) -> bool {
         if (fileExists(p)) {
             ImFontConfig cfg;
@@ -138,8 +137,6 @@ void Viewer::initImGui() {
         cfg.SizePixels = 24.0f;
         io.Fonts->AddFontDefault(&cfg);
     }
-    // ImGui 1.92: ImGui_ImplOpenGL3_CreateFontsTexture is private/renamed;
-    // the backend builds the font texture on first NewFrame() automatically.
 }
 
 void Viewer::loadShaders() {
@@ -170,7 +167,6 @@ bool Viewer::loadModel(const std::filesystem::path& path) {
         state_.highlightedFace.reset();
         return true;
     } catch (const std::exception& e) {
-        // toast 文本用 UTF-8(wstring → UTF-8 转换), 避免窄字符串里塞宽字符
         std::string msg = "加载失败: ";
         msg += e.what();
         uiReq_.toast = std::move(msg);
@@ -208,11 +204,7 @@ void Viewer::clearModel() {
 void Viewer::dropCallback(GLFWwindow* w, int pathCount, const char* paths[]) {
     auto* self = reinterpret_cast<Viewer*>(glfwGetWindowUserPointer(w));
     if (pathCount <= 0 || !paths[0]) return;
-    // GLFW 在 Windows 上给的是 ANSI(CP_ACP)字节,直接喂给 std::ifstream 会触发
-    // 一次 ANSI→UTF-16 转换,某些字符(包括很多 GBK 码点)会触发 ERROR_NO_UNICODE_TRANSLATION
-    // (1113, "no mapping for the Unicode character exists")。
-    // 先用 MultiByteToWideChar 转成宽字符,再构造 fs::path,这样 std::ifstream 内部直接拿
-    // UTF-16 路径,不经过 ANSI→UTF-16 转换,中文/日文路径都能开。
+    // ANSI 路径 → 宽字符 → fs::path
     self->dropFile_ = std::filesystem::path(ansiToWide(paths[0]));
 }
 
@@ -264,8 +256,7 @@ void Viewer::mouseButtonCallback(GLFWwindow* w, int button, int action, int /*mo
         s_dragButton = button;
         glfwGetCursorPos(w, &s_lastX, &s_lastY);
         if (button == GLFW_MOUSE_BUTTON_LEFT) {
-            // 拾取 (左键单击 = 旋转;但单击和拖拽难区分)
-            // 简单实现:按下时记录,松开时若 < 4px 移动 = 点击 → 拾取
+            // 左键:松开时移动 < 4px 视为点击拾取(见 RELEASE 分支)
         }
     } else if (action == GLFW_RELEASE) {
         if (s_dragging && s_dragButton == GLFW_MOUSE_BUTTON_LEFT) {
@@ -320,10 +311,10 @@ void Viewer::processInput() {
     }
 }
 
-// WASD/QE 飞行(平移 target,水平方向 = 相机水平 forward/right,Shift 加速 3x)
+// WASD/QE 平移视点(水平沿相机 forward/right,垂直沿 Z,Shift 加速 3x)
 void Viewer::processMovement(float dt) {
     if (!state_.enableWASD || dt <= 0.f) return;
-    if (ImGui::GetIO().WantCaptureKeyboard) return;  // ImGui 焦点时不抢
+    if (ImGui::GetIO().WantCaptureKeyboard) return;
 
     auto pressed = [this](int key) {
         return glfwGetKey(window_, key) == GLFW_PRESS;
@@ -340,8 +331,7 @@ void Viewer::processMovement(float dt) {
     if (glm::length(move) < 1e-4f) return;
     move = glm::normalize(move);
 
-    // 相机水平 forward / right(忽略 Z 分量,让 WASD 始终在 xOy 水平面上)
-    // Z 轴朝上,垂直升降用 Z
+    // 水平沿相机 forward/right(忽略 Z 分量),垂直升降沿 Z 轴
     glm::vec3 fwdH  = glm::normalize(glm::vec3(cam_.forward().x, cam_.forward().y, 0.f));
     glm::vec3 rgtH  = cam_.right();
     glm::vec3 world = fwdH * (-move.z) + rgtH * move.x + glm::vec3(0.f, 0.f, move.y);
@@ -355,9 +345,7 @@ void Viewer::processMovement(float dt) {
 void Viewer::handleUiRequest() {
     if (uiReq_.openFileDialog) {
         uiReq_.openFileDialog = false;
-        // GLFW 没有原生文件对话框;用 tinyfd? 设计文档没要求 → 用命令行参数 或
-        // 把文件拖到窗口。简化:用 stb 或者直接用 Windows GetOpenFileName
-        // 用 Windows API:
+        // Windows 文件对话框(使用 GetOpenFileNameA)
         OPENFILENAMEA ofn;
         char szFile[260] = {0};
         ZeroMemory(&ofn, sizeof(ofn));
@@ -369,7 +357,7 @@ void Viewer::handleUiRequest() {
         ofn.nFilterIndex = 1;
         ofn.Flags = OFN_PATHMUSTEXIST | OFN_FILEMUSTEXIST;
         if (GetOpenFileNameA(&ofn)) {
-            // 同 drop: ANSI→wide→fs::path, 避免 std::ifstream 内部转码失败
+            // 同 drop: ANSI → wide → fs::path
             loadModel(std::filesystem::path(ansiToWide(szFile)));
         }
     }
@@ -402,7 +390,7 @@ void Viewer::renderSceneSingle(int vpW, int vpH) {
     float fogNear = state_.fogEnabled ? state_.fogNear  : 1e9f;
     float fogFar  = state_.fogEnabled ? state_.fogFar   : 1e9f + 1.f;
 
-    // Grid 网格(画在 mesh 之前,深度测试不通过会被遮)
+    // 网格(画在 mesh 之前,被深度测试遮挡)
     if (state_.showGrid) {
         shaderGrid_.bind();
         shaderGrid_.setMat4("uModel", glm::mat4(1.f));
@@ -438,7 +426,7 @@ void Viewer::renderSceneSingle(int vpW, int vpH) {
     }
     if (state_.mode == RenderMode::Wireframe || state_.mode == RenderMode::SolidWire) {
         if (state_.mode == RenderMode::Wireframe) {
-            glClear(GL_DEPTH_BUFFER_BIT);  // 线框最前
+            glClear(GL_DEPTH_BUFFER_BIT);  // 线框置顶
         }
         shaderLine_.bind();
         shaderLine_.setMat4("uModel", glm::mat4(1.f));
@@ -451,7 +439,7 @@ void Viewer::renderSceneSingle(int vpW, int vpH) {
             renderer_.drawWireframe();
         }
     }
-    // 拾取高亮(只画高亮面)
+    // 拾取高亮
     if (mesh_ && state_.highlightedFace.has_value()) {
         shaderPicker_.bind();
         shaderPicker_.setMat4("uModel", glm::mat4(1.f));
@@ -471,20 +459,20 @@ void Viewer::renderSceneSingle(int vpW, int vpH) {
 }
 
 void Viewer::renderSceneSplit(int vpW, int vpH, int halfW) {
-    // 左视口 - 主光
+    // 左视口
     glViewport(0, 0, halfW, vpH);
     glScissor(0, 0, halfW, vpH);
     glEnable(GL_SCISSOR_TEST);
     renderSceneSingle(halfW, vpH);
     glDisable(GL_SCISSOR_TEST);
 
-    // 右视口 - alt 光照/颜色
+    // 右视口
     glViewport(halfW, 0, vpW - halfW, vpH);
     glScissor(halfW, 0, vpW - halfW, vpH);
     glEnable(GL_SCISSOR_TEST);
 
     if (state_.split == SplitMode::DiffShading) {
-        // 同一 mesh 不同参数
+        // 同一模型, alt 参数
         glm::vec3 fog = state_.fogEnabled ? state_.fogColor : state_.altBaseColor;
         float fogNear = state_.fogEnabled ? state_.altFogNear : 1e9f;
         float fogFar  = state_.fogEnabled ? state_.altFogFar  : 1e9f + 1.f;
@@ -514,7 +502,7 @@ void Viewer::renderSceneSplit(int vpW, int vpH, int halfW) {
         shaderLine_.setVec3("uLineColor", glm::vec3(0.4f, 0.8f, 1.0f));
         glLineWidth(2.f);
     } else if (state_.split == SplitMode::DiffModels) {
-        // 右侧画 meshB(没加载则画同 mesh 但 alt 颜色)
+        // 右侧画 meshB(未加载时生成默认模型)
         if (!meshB_) {
             meshB_ = procedural::torus();
             meshB_->centerAndScale(1.0f);
@@ -559,7 +547,7 @@ void Viewer::exportScreenshot(int vpW, int vpH) {
     fbo_.readPixels(pixels);
     fbo_.unbind();
 
-    // 写 PNG:时间戳命名
+    // PNG 以时间戳命名
     auto t = std::chrono::system_clock::now();
     auto tt = std::chrono::system_clock::to_time_t(t);
     std::tm tmv;
@@ -595,7 +583,7 @@ void Viewer::run() {
         auto now = std::chrono::high_resolution_clock::now();
         float dt = std::chrono::duration<float>(now - last).count();
         last = now;
-        if (dt > 0.1f) dt = 0.1f;   // 防止窗口拖动 / 暂停后大跳
+        if (dt > 0.1f) dt = 0.1f;   // 限制 dt
 
         processInput();
         processMovement(dt);
@@ -626,8 +614,7 @@ void Viewer::run() {
         // 左上角 3D 坐标轴 gizmo
         drawAxisGizmo(0, 0, winW_, winH_);
 
-        // IME 智能切换:仅当 ImGui 正在处理文本输入 (InputText/InputTextMultiline 等)
-        // 时启用 IME;其余时间 (WASD / 快捷键 / 滑条) 自动关闭,防止候选框遮挡。
+        // 根据 ImGui 文本输入状态自动切换 IME
         ImeGuard::syncWithImGui(window_);
 
         ImGui::Render();
@@ -637,13 +624,13 @@ void Viewer::run() {
         ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
         glfwSwapBuffers(window_);
 
-        (void)last;  // dt 已计算
+        (void)last;
     }
 }
 
 void Viewer::checkErr(const char* tag) { checkGLError(tag); }
 
-// 左上角 3D 坐标轴 gizmo (跟相机联动)
+// 左上角 3D 坐标轴 gizmo
 void Viewer::drawAxisGizmo(int vpX, int vpY, int /*vpW*/, int /*vpH*/) {
     if (!state_.showAxisGizmo) return;
     const float menuH = ImGui::GetFrameHeight();
