@@ -1,17 +1,19 @@
 // src/model/Mesh.h
-// 统一网格数据结构 - 顶点/索引/包围盒
+// 统一网格数据结构 - 顶点/索引/包围盒/PMX 材质数据
 #pragma once
 
 #include <glm/glm.hpp>
 #include <cstdint>
 #include <string>
 #include <vector>
+#include "PmxData.h"
 
 namespace prism {
 
 struct VertexPN  {
     glm::vec3 position;
     glm::vec3 normal;
+    glm::vec2 uv{0.f};   // 仅 PMX 模型有值,其余格式为 0
 };
 
 struct VertexPNF {  // 带 face id (用于面片拾取)
@@ -36,7 +38,16 @@ struct Mesh {
     glm::vec3 bboxMin{0.f}, bboxMax{0.f};
     std::uint32_t triangleCount = 0;
 
+    // centerAndScale 实际应用的缩放系数(边缘等模型空间量换算用)
+    float scaleApplied = 1.f;
+
+    // PMX 专属数据(其他格式为空)
+    std::vector<std::string>  pmxTexturePaths;  // 纹理相对路径列表(材质按索引引用)
+    std::vector<PmxMaterial>  pmxMaterials;     // 面索引范围连续且总和 = indices_.size()
+    std::vector<PmxBone>      pmxBones;
+
     bool empty() const noexcept { return triangleCount == 0; }
+    bool hasPmxMaterials() const noexcept { return !pmxMaterials.empty(); }
 
     void computeNormals();           // 已有顶点情况
     void computeFaceNormals();       // flat 模式

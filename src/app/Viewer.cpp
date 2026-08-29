@@ -2,8 +2,10 @@
 #include "Viewer.h"
 #include "../utils/FileUtils.h"
 #include "../utils/StbWrite.h"
+#include "../utils/StbImage.h"
 #include "../utils/ImeGuard.h"
 #include "../model/Procedural.h"
+#include "../model/MeshWriter.h"
 #include "../ui/Picker.h"
 #include <imgui.h>
 #include <imgui_impl_glfw.h>
@@ -161,7 +163,10 @@ bool Viewer::loadModel(const std::filesystem::path& path) {
         m->centerAndScale(1.0f);
         m->buildPickData();
         renderer_.upload(*m);
+        pmxTexs_.clear();
         mesh_ = std::move(m);
+        // PMX 纹理路径相对于模型文件所在目录
+        if (mesh_->hasPmxMaterials()) loadPmxTextures(path.parent_path(), *mesh_);
         AABB box; box.min = mesh_->bboxMin; box.max = mesh_->bboxMax;
         cam_.fitTo(box, 1.6f);
         state_.highlightedFace.reset();
@@ -187,6 +192,7 @@ void Viewer::generateGeometry(int idx) {
     m->centerAndScale(1.0f);
     m->buildPickData();
     renderer_.upload(*m);
+    pmxTexs_.clear();
     mesh_ = std::move(m);
     AABB box; box.min = mesh_->bboxMin; box.max = mesh_->bboxMax;
     cam_.fitTo(box, 1.6f);
@@ -197,6 +203,7 @@ void Viewer::generateGeometry(int idx) {
 void Viewer::clearModel() {
     mesh_.reset();
     renderer_.clear();
+    pmxTexs_.clear();
     state_.highlightedFace.reset();
 }
 
@@ -365,6 +372,38 @@ void Viewer::handleUiRequest() {
         uiReq_.exportScreenshot = false;
         exportScreenshot(winW_, winH_);
     }
+    if (uiReq_.exportModel) {
+        uiReq_.exportModel = false;
+        if (!mesh_) {
+            uiReq_.toast = "导出失败: 当前未加载模型";
+        } else {
+            // Windows 保存对话框(与打开对话框同为 ANSI 版本)
+            OPENFILENAMEA ofn;
+            char szFile[260] = {0};
+            ZeroMemory(&ofn, sizeof(ofn));
+            ofn.lStructSize = sizeof(ofn);
+            ofn.hwndOwner = nullptr;
+            ofn.lpstrFile = szFile;
+            ofn.nMaxFile = sizeof(szFile);
+            ofn.lpstrFilter = "OBJ (*.obj)\0*.obj\0STL (*.stl)\0*.stl\0"
+                              "PLY ASCII (*.ply)\0*.ply\0PLY Binary (*.ply)\0*.ply\0"
+                              "OFF (*.off)\0*.off\0";
+            ofn.nFilterIndex = 1;
+            ofn.lpstrDefExt = "obj";
+            ofn.Flags = OFN_OVERWRITEPROMPT | OFN_PATHMUSTEXIST;
+            if (GetSaveFileNameA(&ofn)) {
+                try {
+                    const fs::path out(ansiToWide(szFile));
+                    // 过滤器 4 = PLY Binary,其余按扩展名分发(默认 PLY 为 ASCII)
+                    if (ofn.nFilterIndex == 4) MeshWriter::writePLY(*mesh_, out, true);
+                    else                       MeshWriter::save(*mesh_, out);
+                    uiReq_.toast = std::string("已导出: ") + getFileName(out);
+                } catch (const std::exception& e) {
+                    uiReq_.toast = std::string("导出失败: ") + e.what();
+                }
+            }
+        }
+    }
     if (uiReq_.generateGeometry >= 0) {
         generateGeometry(uiReq_.generateGeometry);
         uiReq_.generateGeometry = -1;
@@ -422,7 +461,14 @@ void Viewer::renderSceneSingle(int vpW, int vpH) {
         shaderMesh_.setFloat("uFogNear",   fogNear);
         shaderMesh_.setFloat("uFogFar",    fogFar);
         shaderMesh_.setFloat("uSpecStrength", state_.specStrength);
-        if (mesh_) renderer_.drawSolid();
+        if (mesh_) {
+            if (mesh_->hasPmxMaterials()) {
+                renderPmxMaterials();
+            } else {
+                applyPlainMaterialUniforms();
+                renderer_.drawSolid();
+            }
+        }
     }
     if (state_.mode == RenderMode::Wireframe || state_.mode == RenderMode::SolidWire) {
         if (state_.mode == RenderMode::Wireframe) {
@@ -455,6 +501,30 @@ void Viewer::renderSceneSingle(int vpW, int vpH) {
         glPolygonOffset(-1.f, -1.f);
         renderer_.drawPicker();
         glDisable(GL_POLYGON_OFFSET_FILL);
+    }
+    // PMX 边缘: 背面剔除 + 沿法线外扩的反壳绘制 (仅实体模式有意义)
+    if (mesh_ && mesh_->hasPmxMaterials() && state_.pmx.showEdge &&
+        state_.mode != RenderMode::Wireframe) {
+        shaderFlat_.bind();
+        shaderFlat_.setMat4("uModel", glm::mat4(1.f));
+        shaderFlat_.setMat4("uView",  cam_.view());
+        shaderFlat_.setMat4("uProjection", cam_.projection());
+        shaderFlat_.setMat3("uNormalMatrix", glm::mat3(1.f));
+        shaderFlat_.setVec3("uLightDir", state_.lightDir);
+        shaderFlat_.setFloat("uAmbient", 1.f);
+        shaderFlat_.setFloat("uDiffuse", 0.f);
+        glEnable(GL_CULL_FACE);
+        glCullFace(GL_FRONT);  // 只画外扩后的背面,形成轮廓壳
+        for (const auto& mat : mesh_->pmxMaterials) {
+            // 边缘宽度 = 材质边缘尺寸 × 全局滑条 × 模型归一化缩放 (附固定系数)
+            const float expand = mat.edgeSize * state_.pmx.edgeWidth *
+                                 mesh_->scaleApplied * 0.2f;
+            shaderFlat_.setFloat("uEdgeExpand", expand);
+            shaderFlat_.setVec3 ("uColor", mat.edgeColor);
+            renderer_.drawSolidRange(mat.firstIndex, mat.indexCount);
+        }
+        glCullFace(GL_BACK);
+        glDisable(GL_CULL_FACE);
     }
 }
 
@@ -492,6 +562,7 @@ void Viewer::renderSceneSplit(int vpW, int vpH, int halfW) {
         shaderMesh_.setFloat("uFogNear",   fogNear);
         shaderMesh_.setFloat("uFogFar",    fogFar);
         shaderMesh_.setFloat("uSpecStrength", 0.3f);
+        applyPlainMaterialUniforms();
         if (mesh_) renderer_.drawSolid();
 
         // 分隔线
@@ -525,10 +596,99 @@ void Viewer::renderSceneSplit(int vpW, int vpH, int halfW) {
         shaderMesh_.setFloat("uFogNear",   state_.fogNear);
         shaderMesh_.setFloat("uFogFar",    state_.fogFar);
         shaderMesh_.setFloat("uSpecStrength", state_.specStrength);
+        applyPlainMaterialUniforms();
         rendererB_.drawSolid();
     }
     glDisable(GL_SCISSOR_TEST);
     glViewport(0, 0, vpW, vpH);
+}
+
+// ---------- PMX 材质 ----------
+
+void Viewer::loadPmxTextures(const std::filesystem::path& pmxDir, const Mesh& mesh) {
+    pmxTexs_.clear();
+    pmxTexs_.reserve(mesh.pmxTexturePaths.size());
+    for (const auto& rel : mesh.pmxTexturePaths) {
+        TexturePtr tex;
+        try {
+            fs::path p(rel);
+            if (!p.is_absolute()) p = joinPath(pmxDir, p);
+            int w = 0, h = 0;
+            const std::vector<std::uint8_t> px = loadImageRGBA(p, w, h);
+            GLuint id = 0;
+            glGenTextures(1, &id);
+            tex.reset(id);
+            glBindTexture(GL_TEXTURE_2D, id);
+            glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, w, h, 0,
+                         GL_RGBA, GL_UNSIGNED_BYTE, px.data());
+            glGenerateMipmap(GL_TEXTURE_2D);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+            glBindTexture(GL_TEXTURE_2D, 0);
+        } catch (...) {
+            // 贴图缺失/解码失败保留空句柄,绘制时退化为纯色漫反射
+        }
+        pmxTexs_.push_back(std::move(tex));
+    }
+}
+
+GLuint Viewer::pmxTexId(int index) const {
+    if (index < 0 || index >= static_cast<int>(pmxTexs_.size())) return 0;
+    return pmxTexs_[static_cast<size_t>(index)].get();
+}
+
+void Viewer::applyPlainMaterialUniforms() {
+    // 非 PMX 路径: 不透明/无贴图/无颜色覆盖,避免残留上次 PMX 绘制的 uniform 状态
+    shaderMesh_.setFloat("uAlpha", 1.f);
+    shaderMesh_.setInt  ("uColorOverride", 0);
+    shaderMesh_.setInt  ("uUseTexture", 0);
+    shaderMesh_.setInt  ("uUseToon", 0);
+    shaderMesh_.setInt  ("uUseSphere", 0);
+}
+
+void Viewer::renderPmxMaterials() {
+    // 前提: shaderMesh_ 已绑定且矩阵/光照/雾 uniform 已设置 (见 renderSceneSingle)
+    const PmxViewSettings& pm = state_.pmx;
+    for (const auto& mat : mesh_->pmxMaterials) {
+        shaderMesh_.setVec3 ("uBaseColor", pm.colorOverride ? pm.overrideColor : mat.diffuse);
+        shaderMesh_.setFloat("uAlpha", mat.alpha * pm.alpha);
+
+        // Tex 漫反射贴图 (单元 0)
+        const GLuint tex = pm.enableTex ? pmxTexId(mat.texIndex) : 0;
+        shaderMesh_.setInt("uUseTexture", tex ? 1 : 0);
+        if (tex) {
+            glActiveTexture(GL_TEXTURE0);
+            glBindTexture(GL_TEXTURE_2D, tex);
+            shaderMesh_.setInt("uTex", 0);
+        }
+
+        // Toon 渐变贴图 (单元 1;共享 toon 无本地文件,仅纹理引用可用)
+        const GLuint toon = (pm.enableToon && mat.toonFlag == 0)
+                                ? pmxTexId(mat.toonIndex) : 0;
+        shaderMesh_.setInt("uUseToon", toon ? 1 : 0);
+        if (toon) {
+            glActiveTexture(GL_TEXTURE1);
+            glBindTexture(GL_TEXTURE_2D, toon);
+            shaderMesh_.setInt("uToonTex", 1);
+        }
+
+        // Sphere 球面贴图 (单元 2;模式 0=关 1=乘 2=加,3 按乘处理)
+        const GLuint sph = (pm.enableSphere && mat.sphMode > 0)
+                               ? pmxTexId(mat.sphIndex) : 0;
+        shaderMesh_.setInt("uUseSphere", sph ? 1 : 0);
+        if (sph) {
+            glActiveTexture(GL_TEXTURE2);
+            glBindTexture(GL_TEXTURE_2D, sph);
+            shaderMesh_.setInt("uSphereTex", 2);
+            shaderMesh_.setInt("uSphereMode", mat.sphMode == 2 ? 2 : 1);
+        }
+
+        renderer_.drawSolidRange(mat.firstIndex, mat.indexCount);
+    }
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_2D, 0);
 }
 
 void Viewer::exportScreenshot(int vpW, int vpH) {
@@ -599,7 +759,8 @@ void Viewer::run() {
         std::uint32_t tc = mesh_ ? mesh_->triangleCount : 0;
         glm::vec3 bbMin = mesh_ ? mesh_->bboxMin : glm::vec3(0);
         glm::vec3 bbMax = mesh_ ? mesh_->bboxMax : glm::vec3(0);
-        panel_.draw(state_, uiReq_, name, vc, tc, bbMin, bbMax);
+        const bool pmxLoaded = mesh_ && mesh_->hasPmxMaterials();
+        panel_.draw(state_, uiReq_, name, vc, tc, bbMin, bbMax, pmxLoaded);
 
         // 双视口标签
         if (state_.split != SplitMode::Off) {

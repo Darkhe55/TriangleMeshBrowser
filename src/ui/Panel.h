@@ -29,6 +29,7 @@ struct UiRequest {
     // 文件
     bool openFileDialog = false;
     bool exportScreenshot = false;
+    bool exportModel = false;
     // 几何
     int  generateGeometry = -1;  // -1 = none, 0..4 = procedural
     bool fitToView = false;
@@ -38,6 +39,20 @@ struct UiRequest {
     bool resetCamera = false;
     // 错误/信息
     std::string toast;  // 临时显示
+};
+
+// PMX 材质显示控制 (仅对含材质的 PMX 模型生效)
+struct PmxViewSettings {
+    // 材质层开关
+    bool enableTex    = true;
+    bool enableToon   = true;
+    bool enableSphere = true;
+    // 基础调整
+    float alpha = 1.0f;
+    bool  colorOverride = false;
+    glm::vec3 overrideColor{1.f, 1.f, 1.f};
+    bool  showEdge  = false;
+    float edgeWidth = 1.0f;
 };
 
 struct ViewState {
@@ -67,6 +82,9 @@ struct ViewState {
     // 拾取
     std::optional<std::uint32_t> highlightedFace;
 
+    // PMX 材质控制
+    PmxViewSettings pmx;
+
     // 设置:鼠标反转(默认反转 X,Y 不反转)
     bool invertX = true;
     bool invertY = false;
@@ -83,11 +101,12 @@ struct ViewState {
 
 class Panel {
 public:
-    // 必须在 ImGui 新帧内调用
+    // 必须在 ImGui 新帧内调用; pmxLoaded = 当前模型含 PMX 材质数据
     void draw(ViewState& s, UiRequest& req,
               const std::string& currentModelName,
               std::uint32_t vertexCount, std::uint32_t triangleCount,
-              const glm::vec3& bboxMin, const glm::vec3& bboxMax);
+              const glm::vec3& bboxMin, const glm::vec3& bboxMax,
+              bool pmxLoaded);
 
     // 文件路径(由 openFileDialog 触发后保存)
     std::string& pickedFilePath() noexcept { return pickedPath_; }
@@ -100,7 +119,8 @@ private:
     void drawSidePanel(ViewState& s, const UiRequest& req,
                        const std::string& modelName,
                        std::uint32_t vCount, std::uint32_t tCount,
-                       const glm::vec3& bboxMin, const glm::vec3& bboxMax);
+                       const glm::vec3& bboxMin, const glm::vec3& bboxMax,
+                       bool pmxLoaded);
     void drawStatus(const std::string& modelName);
     void drawToast();
 };

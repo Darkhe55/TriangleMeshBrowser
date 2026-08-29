@@ -71,6 +71,9 @@ void MeshRenderer::upload(const Mesh& mesh) {
     glEnableVertexAttribArray(1);
     glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof(VertexPN),
                           reinterpret_cast<void*>(offsetof(VertexPN, normal)));
+    glEnableVertexAttribArray(2);
+    glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, sizeof(VertexPN),
+                          reinterpret_cast<void*>(offsetof(VertexPN, uv)));
 
     if (indexed_) {
         glGenBuffers(1, &ebo);
@@ -153,6 +156,17 @@ void MeshRenderer::drawSolid() const {
         glDrawElements(GL_TRIANGLES, static_cast<GLsizei>(indexCount_), GL_UNSIGNED_INT, nullptr);
     } else {
         glDrawArrays(GL_TRIANGLES, 0, static_cast<GLsizei>(indexCount_));
+    }
+}
+
+void MeshRenderer::drawSolidRange(std::uint32_t first, std::uint32_t count) const {
+    if (!vao_) return;
+    glBindVertexArray(vao_.get());
+    if (indexed_) {
+        glDrawElements(GL_TRIANGLES, static_cast<GLsizei>(count), GL_UNSIGNED_INT,
+                       reinterpret_cast<const void*>(static_cast<std::uintptr_t>(first) * sizeof(std::uint32_t)));
+    } else {
+        glDrawArrays(GL_TRIANGLES, static_cast<GLint>(first), static_cast<GLsizei>(count));
     }
 }
 

@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.20)
 project(PrismViewer
-    VERSION 0.2.0
+    VERSION 0.3.0
     DESCRIPTION "棱镜模型查看器"
     LANGUAGES CXX)
 
@@ -74,6 +74,9 @@ add_executable(PrismViewer
 
     src/model/Mesh.h
     src/model/Mesh.cpp
+    src/model/PmxData.h
+    src/model/MeshWriter.h
+    src/model/MeshWriter.cpp
     src/model/ModelLoader.h
     src/model/ModelLoader.cpp
     src/model/OBJLoader.h
@@ -98,6 +101,8 @@ add_executable(PrismViewer
     src/utils/FileUtils.cpp
     src/utils/StbWrite.h
     src/utils/StbWrite.cpp
+    src/utils/StbImage.h
+    src/utils/StbImage.cpp
     src/utils/ImeGuard.h
     src/utils/ImeGuard.cpp
 )

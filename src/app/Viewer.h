@@ -70,6 +70,9 @@ private:
     std::unique_ptr<Mesh>         meshB_;
     MeshRenderer                  rendererB_;
 
+    // PMX 纹理缓存(与 Mesh::pmxTexturePaths 同序,加载失败为空句柄)
+    std::vector<TexturePtr>       pmxTexs_;
+
     // ---------- 内部方法 ----------
     bool  initGL();
     void  initImGui();
@@ -82,6 +85,12 @@ private:
     // 子视口渲染
     void renderSceneSingle(int vpW, int vpH);
     void renderSceneSplit (int vpW, int vpH, int halfW);
+
+    // PMX 材质渲染与纹理管理
+    void   loadPmxTextures(const std::filesystem::path& pmxDir, const Mesh& mesh);
+    void   renderPmxMaterials();
+    GLuint pmxTexId(int index) const;
+    void   applyPlainMaterialUniforms();  // 非 PMX 路径:不透明/无贴图
 
     // 拾取
     void doPicking(double sx, double sy);
