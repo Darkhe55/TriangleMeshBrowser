@@ -1,5 +1,5 @@
 // src/renderer/Grid.h
-// XOY 平面网格 (Y=0)
+// XOY 平面网格 (Z=0)
 #pragma once
 
 #include "GLResources.h"

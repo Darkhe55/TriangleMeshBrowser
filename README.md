@@ -53,12 +53,12 @@ A lightweight, standalone 3D triangle-mesh browser built with C++17 + OpenGL 3.3
 ## Quick Start (Pre-built Release) / 快速开始（预编译版本）
 
 1. Go to the [Releases](../../releases) page.
-2. Download `TriangleMeshBrowser-v0.1.0.zip` for the latest build.
+2. Download `TriangleMeshBrowser-v0.2.0.zip` for the latest build.
 3. Extract the zip and run `PrismViewer.exe`.
 
 --
 1. 前往 [Releases](../../releases) 页面。
-2. 下载最新版本的 `TriangleMeshBrowser-v0.1.0.zip`。
+2. 下载最新版本的 `TriangleMeshBrowser-v0.2.0.zip`。
 3. 解压并运行 `PrismViewer.exe`。
 
 No installer, no runtime — just run the `.exe`.

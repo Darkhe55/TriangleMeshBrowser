@@ -22,7 +22,6 @@ std::unique_ptr<Mesh> loadOFF(const std::filesystem::path& path) {
     if (header != "OFF" && header != "COFF" && header != "NOFF" && header != "CNOFF")
         throw std::runtime_error("Not an OFF file: " + wideToUtf8(path.wstring()));
 
-    // COFF/NOFF 可能有更多 header
     std::uint32_t vCount = 0, fCount = 0, eCount = 0;
     f >> vCount >> fCount >> eCount;
 
@@ -33,18 +32,15 @@ std::unique_ptr<Mesh> loadOFF(const std::filesystem::path& path) {
         glm::vec3 p;
         f >> p.x >> p.y >> p.z;
         // COFF: 后面跟 r g b [a]; NOFF: 后面跟 normal; CNOFF: color+normal
-        // 简化: 跳过剩余数字
         if (header != "OFF") {
-            // 探测:看下一行有几个数字
-            // 用一个 peek 跳过的简单方式:直接读 3 个 float 试 normal
             glm::vec3 extra{};
             f >> extra.x >> extra.y >> extra.z;
-            // 如果有颜色(COFF/CNOFF),再读 3 个
+            // COFF/CNOFF: 再读颜色
             if (header == "COFF" || header == "CNOFF") {
                 glm::vec3 col;
                 f >> col.x >> col.y >> col.z;
             }
-            // 如果是 NOFF,extra 是法线
+            // NOFF/CNOFF: extra 是法线
             if (header == "NOFF" || header == "CNOFF") {
                 mesh->vertices_.push_back({p, extra});
             } else {

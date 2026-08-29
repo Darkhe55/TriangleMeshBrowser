@@ -63,7 +63,7 @@ std::unique_ptr<Mesh> loadPLY(const std::filesystem::path& path) {
             if (typeOrList == "list") {
                 std::string countType, itemType;
                 ls >> countType >> itemType;
-                p.list = 1;  // 简化:假定 count 是 uchar
+                p.list = 1;  // list 属性
                 p.type = itemType;
                 p.size = typeSize(itemType);
             } else {
@@ -71,7 +71,7 @@ std::unique_ptr<Mesh> loadPLY(const std::filesystem::path& path) {
                 p.size = typeSize(typeOrList);
             }
             if (currentElement == "vertex") {
-                p.offset = 0;  // 重新计算
+                p.offset = 0;
                 vProps.push_back(p);
             } else if (currentElement == "face") {
                 fProps.push_back(p);
@@ -139,7 +139,7 @@ std::unique_ptr<Mesh> loadPLY(const std::filesystem::path& path) {
         }
     } else if (format == "binary_little_endian" || format == "binary_big_endian") {
         const bool bigEndian = (format == "binary_big_endian");
-        // 单字节翻转模板(单字节不需要 swap)
+        // 字节序翻转(单字节不需要)
         auto bswap2 = [](std::uint16_t v) -> std::uint16_t {
             return static_cast<std::uint16_t>((v >> 8) | (v << 8));
         };
@@ -210,7 +210,7 @@ std::unique_ptr<Mesh> loadPLY(const std::filesystem::path& path) {
                 : glm::vec3(0.f);
             mesh->vertices_.push_back(v);
         }
-        // faces — 简化:vertex_indices 是 list, count 假定是 uchar
+        // faces — vertex_indices 是 list, count 为 uchar
         for (std::uint32_t i = 0; i < fCount; ++i) {
             std::uint8_t n = 0;
             f.read(reinterpret_cast<char*>(&n), 1);

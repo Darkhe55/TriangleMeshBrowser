@@ -127,7 +127,7 @@ std::unique_ptr<Mesh> loadOBJ(const std::filesystem::path& path) {
     }
     mesh->triangleCount = static_cast<std::uint32_t>(mesh->indices_.size() / 3);
 
-    // 是否有任何顶点的法线为 0? → 重新计算
+    // 存在零法线 → 重新计算
     bool needCompute = false;
     for (const auto& v : mesh->vertices_) {
         if (glm::length(v.normal) < 1e-6f) { needCompute = true; break; }

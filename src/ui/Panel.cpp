@@ -26,9 +26,9 @@ void Panel::draw(ViewState& s, UiRequest& req,
 void Panel::drawToast() {
     if (toastTimer_ <= 0.f) return;
     toastTimer_ -= ImGui::GetIO().DeltaTime;
-    // 自适应:贴屏幕底部偏左 20px,留 12px 边距
+    // 位置:状态栏上方
     const float margin = 20.0f;
-    const float fromBottom = 48.0f;  // 状态栏之上
+    const float fromBottom = 48.0f;
     ImGui::SetNextWindowPos(
         ImVec2(margin, ImGui::GetIO().DisplaySize.y - fromBottom),
         ImGuiCond_Always);
@@ -138,10 +138,9 @@ void Panel::drawSidePanel(ViewState& s, const UiRequest& /*req*/,
                           const std::string& modelName,
                           std::uint32_t vCount, std::uint32_t tCount,
                           const glm::vec3& bboxMin, const glm::vec3& bboxMax) {
-    // 自适应布局:宽度 = max(340, 屏幕宽 * 0.22),封顶 560
-    // 高度 = 屏幕高 - 菜单条高 - 状态栏
+    // 自适应布局:宽度 = max(340, 屏幕宽 * 0.22),封顶 560;高度 = 屏幕高 - 菜单条 - 状态栏
     const ImVec2 display = ImGui::GetIO().DisplaySize;
-    const float menuH    = ImGui::GetFrameHeight();  // 主菜单条高度
+    const float menuH    = ImGui::GetFrameHeight();
     const float statusH  = 32.0f;                   // 底部状态栏预留
     const float margin   = 12.0f;
     float panelW = display.x * 0.22f;
@@ -155,7 +154,7 @@ void Panel::drawSidePanel(ViewState& s, const UiRequest& /*req*/,
     ImGui::SetNextWindowSize(ImVec2(panelW, panelH), ImGuiCond_Always);
 
     ImGui::Begin("控制台");
-    // 内容超出时给个可滚动子窗口,保证 24px 字体下不溢出
+    // 可滚动子窗口
     ImGui::BeginChild("##scroll", ImVec2(0, 0), false,
                       ImGuiWindowFlags_AlwaysVerticalScrollbar);
     if (ImGui::CollapsingHeader("模型信息", ImGuiTreeNodeFlags_DefaultOpen)) {
@@ -228,9 +227,9 @@ void Panel::drawStatus(const std::string& modelName) {
     ImGui::Begin("##status", nullptr,
                  ImGuiWindowFlags_NoDecoration |
                  ImGuiWindowFlags_NoInputs);
-    // 自适应:左侧标题(占 ~30%),右侧模型名(剩余),中间可放其他
+    // 左侧标题,右侧模型名
     std::string name = modelName.empty() ? "未加载" : modelName;
-    // 截断过长模型名以避免溢出
+    // 截断过长模型名
     constexpr size_t kMaxName = 60;
     if (name.size() > kMaxName) name = name.substr(0, kMaxName - 3) + "...";
     ImGui::Text("  棱镜模型查看器");

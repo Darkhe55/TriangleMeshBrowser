@@ -12,7 +12,7 @@ void writePNG(const std::string& path, int width, int height, const std::uint8_t
     if (!rgba || width <= 0 || height <= 0)
         throw std::runtime_error("writePNG: invalid args");
 
-    // 垂直翻转(GL 原点在左下,PNG 在左上)
+    // 垂直翻转
     std::vector<std::uint8_t> flipped(static_cast<size_t>(width) * height * 4);
     size_t rowBytes = static_cast<size_t>(width) * 4;
     for (int y = 0; y < height; ++y) {

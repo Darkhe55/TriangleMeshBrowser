@@ -1,7 +1,5 @@
 // src/utils/FileUtils.h
 // 文件读取 / 路径 / 扩展名工具
-// 路径统一用 std::filesystem::path,在 Windows 上从 std::wstring 构造,
-// 避免 ANSI→UTF-16 转换在中文路径上失败("no mapping for the Unicode character exists")
 #pragma once
 
 #include <filesystem>
@@ -14,8 +12,7 @@ namespace prism {
 
 namespace fs = std::filesystem;
 
-// Windows: 把 ANSI(系统代码页, 中文系统 = CP936)字节转成 UTF-16 宽字符串,
-//          用于从 GLFW drop / argv / GetOpenFileNameA 拿到的 char* 路径转换
+// Windows: ANSI(系统代码页)字节 → UTF-16 宽字符串
 // 非 Windows: 平台原生 UTF-8,直接拷贝
 std::wstring ansiToWide(const std::string& ansiPath);
 

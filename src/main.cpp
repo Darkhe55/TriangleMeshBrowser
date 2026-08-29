@@ -16,8 +16,7 @@ int main(int argc, char* argv[]) {
             // 去掉引号
             if (arg.size() >= 2 && arg.front() == '"' && arg.back() == '"')
                 arg = arg.substr(1, arg.size() - 2);
-            // argv 在 Windows 上是 ANSI 字节,转成 wide 再构 fs::path,
-            // 与 drag-drop 走同一条路径,保证中文参数也能开
+            // ANSI → wide → fs::path
             std::filesystem::path p(prism::ansiToWide(arg));
             if (!viewer.loadModel(p)) {
                 std::cerr << "无法加载: " << prism::wideToUtf8(p.wstring()) << "\n";
