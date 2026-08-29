@@ -1,6 +1,7 @@
 // src/ui/Panel.cpp
 #include "Panel.h"
 #include "../model/Procedural.h"
+#include "../utils/I18n.h"
 #include <imgui.h>
 #include <GLFW/glfw3.h>
 #include <cstring>
@@ -11,9 +12,10 @@ void Panel::draw(ViewState& s, UiRequest& req,
                  const std::string& currentModelName,
                  std::uint32_t vertexCount, std::uint32_t triangleCount,
                  const glm::vec3& bboxMin, const glm::vec3& bboxMax,
-                 bool pmxLoaded) {
-    drawMenuBar(s, req);
-    drawSidePanel(s, req, currentModelName, vertexCount, triangleCount, bboxMin, bboxMax, pmxLoaded);
+                 bool materialsLoaded, bool hasToonSphere) {
+    drawMenuBar(s, req, materialsLoaded);
+    drawSidePanel(s, req, currentModelName, vertexCount, triangleCount, bboxMin, bboxMax,
+                  materialsLoaded, hasToonSphere);
     drawStatus(currentModelName);
 
     if (!req.toast.empty()) {
@@ -42,107 +44,108 @@ void Panel::drawToast() {
     ImGui::End();
 }
 
-void Panel::drawMenuBar(ViewState& s, UiRequest& req) {
+void Panel::drawMenuBar(ViewState& s, UiRequest& req, bool materialsLoaded) {
+    using i18n::tr;
     if (!ImGui::BeginMainMenuBar()) return;
 
     // -- 设置按钮(主菜单最左) --
-    if (ImGui::Button("设置")) {
+    if (ImGui::Button(tr("menu.settings"))) {
         ImGui::OpenPopup("##settings_popup");
     }
-    if (ImGui::IsItemHovered()) ImGui::SetTooltip("设置");
+    if (ImGui::IsItemHovered()) ImGui::SetTooltip(tr("menu.settings"));
     if (ImGui::BeginPopup("##settings_popup")) {
-        if (ImGui::MenuItem("显示坐标轴",  nullptr, s.showAxisGizmo))  s.showAxisGizmo  = !s.showAxisGizmo;
-        if (ImGui::MenuItem("显示 XOY 网格", nullptr, s.showGrid))     s.showGrid       = !s.showGrid;
-        if (ImGui::MenuItem("显示状态栏",  nullptr, s.showStatusBar))  s.showStatusBar  = !s.showStatusBar;
+        if (ImGui::MenuItem(tr("settings.showAxis"),  nullptr, s.showAxisGizmo))  s.showAxisGizmo  = !s.showAxisGizmo;
+        if (ImGui::MenuItem(tr("settings.showGrid"), nullptr, s.showGrid))     s.showGrid       = !s.showGrid;
+        if (ImGui::MenuItem(tr("settings.showStatusBar"),  nullptr, s.showStatusBar))  s.showStatusBar  = !s.showStatusBar;
         ImGui::Separator();
-        ImGui::TextDisabled("鼠标旋转");
-        if (ImGui::MenuItem("反转 X 轴",   nullptr, s.invertX)) s.invertX = !s.invertX;
-        if (ImGui::MenuItem("反转 Y 轴",   nullptr, s.invertY)) s.invertY = !s.invertY;
+        ImGui::TextDisabled("%s", tr("settings.mouseRotation"));
+        if (ImGui::MenuItem(tr("settings.invertX"),   nullptr, s.invertX)) s.invertX = !s.invertX;
+        if (ImGui::MenuItem(tr("settings.invertY"),   nullptr, s.invertY)) s.invertY = !s.invertY;
         ImGui::Separator();
-        ImGui::TextDisabled("WASD 飞行");
-        if (ImGui::MenuItem("启用 WASD 移动", nullptr, s.enableWASD)) s.enableWASD = !s.enableWASD;
-        ImGui::SliderFloat("速度 (单位/秒)", &s.moveSpeed, 0.1f, 20.0f);
-        if (ImGui::IsItemHovered()) ImGui::SetTooltip("按住 Shift = 3x 加速");
+        ImGui::TextDisabled("%s", tr("settings.wasd"));
+        if (ImGui::MenuItem(tr("settings.enableWasd"), nullptr, s.enableWASD)) s.enableWASD = !s.enableWASD;
+        ImGui::SliderFloat(tr("settings.moveSpeed"), &s.moveSpeed, 0.1f, 20.0f);
+        if (ImGui::IsItemHovered()) ImGui::SetTooltip(tr("settings.wasdTip"));
+        ImGui::Separator();
+        ImGui::TextDisabled("%s", tr("settings.language"));
+        if (ImGui::MenuItem("中文",    nullptr, i18n::language() == i18n::Language::Zh))
+            i18n::setLanguage(i18n::Language::Zh);
+        if (ImGui::MenuItem("English", nullptr, i18n::language() == i18n::Language::En))
+            i18n::setLanguage(i18n::Language::En);
         ImGui::EndPopup();
     }
     ImGui::Separator();
 
-    if (ImGui::BeginMenu("文件")) {
-        if (ImGui::MenuItem("打开模型...", "Ctrl+O")) {
+    if (ImGui::BeginMenu(tr("menu.file"))) {
+        if (ImGui::MenuItem(tr("file.open"), "Ctrl+O")) {
             req.openFileDialog = true;
         }
-        if (ImGui::MenuItem("导出截图 (PNG)...")) {
+        if (ImGui::MenuItem(tr("file.exportScreenshot"))) {
             req.exportScreenshot = true;
         }
-        if (ImGui::MenuItem("导出模型...")) {
+        if (ImGui::MenuItem(tr("file.exportModel"))) {
             req.exportModel = true;
         }
         ImGui::Separator();
-        if (ImGui::MenuItem("关闭模型")) {
+        if (ImGui::MenuItem(tr("file.closeModel"))) {
             req.clearModel = true;
         }
         ImGui::EndMenu();
     }
 
-    if (ImGui::BeginMenu("几何")) {
-        const char* const* names = procedural::allNames();
-        int n = procedural::allCount();
+    if (ImGui::BeginMenu(tr("menu.geometry"))) {
+        const int n = procedural::allCount();
+        static const char* const geomKeys[] = {
+            "geom.0", "geom.1", "geom.2", "geom.3", "geom.4"};
         for (int i = 0; i < n; ++i) {
-            if (ImGui::MenuItem(names[i])) {
+            // 按索引取多语言名称 (顺序与 procedural::allNames 一致)
+            if (ImGui::MenuItem(tr(geomKeys[i]))) {
                 req.generateGeometry = i;
             }
         }
         ImGui::EndMenu();
     }
 
-    if (ImGui::BeginMenu("视图")) {
-        if (ImGui::MenuItem("复位相机", "F")) {
-            req.resetCamera = true;
-        }
-        if (ImGui::MenuItem("框选模型", "Shift+F")) {
-            req.fitToView = true;
-        }
-        ImGui::Separator();
-        const char* splitLabels[] = {"单视口", "对比:不同模型", "对比:不同光照"};
-        for (int i = 0; i < 3; ++i) {
-            bool cur = (static_cast<int>(s.split) == i);
-            if (ImGui::MenuItem(splitLabels[i], nullptr, cur)) {
-                s.split = static_cast<SplitMode>(i);
-            }
-        }
-        ImGui::Separator();
-        const char* modeLabels[] = {"实体", "线框", "实体+线框"};
-        for (int i = 0; i < 3; ++i) {
-            bool cur = (static_cast<int>(s.mode) == i);
-            if (ImGui::MenuItem(modeLabels[i], nullptr, cur)) {
-                s.mode = static_cast<RenderMode>(i);
-            }
-        }
+    // 控制台子板块显示开关列表 (控制右侧面板各折叠区的显示)
+    if (ImGui::BeginMenu(tr("menu.console"))) {
+        ImGui::MenuItem(tr("section.modelInfo"),     nullptr, &s.sections.modelInfo);
+        ImGui::MenuItem(tr("section.colors"),        nullptr, &s.sections.colors);
+        ImGui::MenuItem(tr("section.lighting"),      nullptr, &s.sections.lighting);
+        ImGui::MenuItem(tr("section.fog"),           nullptr, &s.sections.fog);
+        ImGui::BeginDisabled(s.split != SplitMode::DiffShading);
+        ImGui::MenuItem(tr("section.rightLighting"), nullptr, &s.sections.rightLighting);
+        ImGui::EndDisabled();
+        ImGui::MenuItem(tr("section.picking"),       nullptr, &s.sections.picking);
+        ImGui::BeginDisabled(!materialsLoaded);
+        ImGui::MenuItem(tr("section.pmx"),           nullptr, &s.sections.pmx);
+        ImGui::EndDisabled();
+        ImGui::MenuItem(tr("section.view"),          nullptr, &s.sections.view);
         ImGui::EndMenu();
     }
 
-    if (ImGui::BeginMenu("帮助")) {
-        ImGui::MenuItem("左键拖拽:旋转");
-        ImGui::MenuItem("中键/右键拖拽:平移");
-        ImGui::MenuItem("滚轮:缩放");
-        ImGui::MenuItem("F: 复位相机 / Shift+F: 框选");
-        ImGui::MenuItem("点击模型: 高亮三角面");
-        ImGui::MenuItem("拖文件到窗口: 直接打开");
-        ImGui::MenuItem("WASD / 方向键: 平移视点");
-        ImGui::MenuItem("Q / E: 上下");
-        ImGui::MenuItem("Space: 上升 (E 等价)");
-        ImGui::MenuItem("Shift + WASD: 3x 加速");
+    if (ImGui::BeginMenu(tr("menu.help"))) {
+        ImGui::MenuItem(tr("help.leftDrag"));
+        ImGui::MenuItem(tr("help.panDrag"));
+        ImGui::MenuItem(tr("help.scroll"));
+        ImGui::MenuItem(tr("help.shortcut"));
+        ImGui::MenuItem(tr("help.pick"));
+        ImGui::MenuItem(tr("help.drop"));
+        ImGui::MenuItem(tr("help.wasd"));
+        ImGui::MenuItem(tr("help.qe"));
+        ImGui::MenuItem(tr("help.space"));
+        ImGui::MenuItem(tr("help.shiftWasd"));
         ImGui::EndMenu();
     }
 
     ImGui::EndMainMenuBar();
 }
 
-void Panel::drawSidePanel(ViewState& s, const UiRequest& /*req*/,
+void Panel::drawSidePanel(ViewState& s, UiRequest& req,
                           const std::string& modelName,
                           std::uint32_t vCount, std::uint32_t tCount,
                           const glm::vec3& bboxMin, const glm::vec3& bboxMax,
-                          bool pmxLoaded) {
+                          bool materialsLoaded, bool hasToonSphere) {
+    using i18n::tr;
     // 自适应布局:宽度 = max(340, 屏幕宽 * 0.22),封顶 560;高度 = 屏幕高 - 菜单条 - 状态栏
     const ImVec2 display = ImGui::GetIO().DisplaySize;
     const float menuH    = ImGui::GetFrameHeight();
@@ -158,82 +161,120 @@ void Panel::drawSidePanel(ViewState& s, const UiRequest& /*req*/,
         ImGuiCond_Always);
     ImGui::SetNextWindowSize(ImVec2(panelW, panelH), ImGuiCond_Always);
 
-    ImGui::Begin("控制台");
-    // 可滚动子窗口
+    ImGui::Begin(tr("console.title"));
+    // 可滚动子窗口 (WantCaptureMouse 据此屏蔽滚轮缩放,见 Viewer::scrollCallback)
     ImGui::BeginChild("##scroll", ImVec2(0, 0), false,
                       ImGuiWindowFlags_AlwaysVerticalScrollbar);
-    if (ImGui::CollapsingHeader("模型信息", ImGuiTreeNodeFlags_DefaultOpen)) {
+    if (s.sections.modelInfo &&
+        ImGui::CollapsingHeader(tr("section.modelInfo"), ImGuiTreeNodeFlags_DefaultOpen)) {
         if (modelName.empty())
-            ImGui::TextDisabled("(无模型)");
+            ImGui::TextDisabled("%s", tr("info.noModel"));
         else {
-            ImGui::Text("文件: %s", modelName.c_str());
-            ImGui::Text("顶点数: %u", vCount);
-            ImGui::Text("面  数: %u", tCount);
-            ImGui::Text("包围盒:");
+            ImGui::Text(tr("info.file"), modelName.c_str());
+            ImGui::Text(tr("info.vertices"), vCount);
+            ImGui::Text(tr("info.triangles"), tCount);
+            ImGui::Text("%s", tr("info.bbox"));
             ImGui::Text("  min(%.2f, %.2f, %.2f)", bboxMin.x, bboxMin.y, bboxMin.z);
             ImGui::Text("  max(%.2f, %.2f, %.2f)", bboxMax.x, bboxMax.y, bboxMax.z);
         }
     }
 
-    if (ImGui::CollapsingHeader("颜色", ImGuiTreeNodeFlags_DefaultOpen)) {
-        ImGui::ColorEdit3("面片颜色", &s.baseColor.x);
-        ImGui::ColorEdit3("雾色",     &s.fogColor.x);
+    if (s.sections.colors &&
+        ImGui::CollapsingHeader(tr("section.colors"), ImGuiTreeNodeFlags_DefaultOpen)) {
+        ImGui::ColorEdit3(tr("colors.baseColor"), &s.baseColor.x);
+        ImGui::ColorEdit3(tr("colors.fogColor"),  &s.fogColor.x);
     }
 
-    if (ImGui::CollapsingHeader("光照", ImGuiTreeNodeFlags_DefaultOpen)) {
-        ImGui::ColorEdit3("光源色",   &s.lightColor.x);
-        ImGui::ColorEdit3("补光色",   &s.fillColor.x);
-        ImGui::SliderFloat("环境光",  &s.ambient, 0.f, 1.f);
-        ImGui::SliderFloat("补光",    &s.fillStrength, 0.f, 1.f);
-        ImGui::SliderFloat("高光",    &s.specStrength, 0.f, 1.f);
-        ImGui::SliderFloat3("光源方向", &s.lightDir.x, -1.f, 1.f);
+    if (s.sections.lighting &&
+        ImGui::CollapsingHeader(tr("section.lighting"), ImGuiTreeNodeFlags_DefaultOpen)) {
+        ImGui::ColorEdit3(tr("lighting.lightColor"), &s.lightColor.x);
+        ImGui::ColorEdit3(tr("lighting.fillColor"),  &s.fillColor.x);
+        ImGui::SliderFloat(tr("lighting.ambient"),  &s.ambient, 0.f, 1.f);
+        ImGui::SliderFloat(tr("lighting.fill"),     &s.fillStrength, 0.f, 1.f);
+        ImGui::SliderFloat(tr("lighting.specular"), &s.specStrength, 0.f, 1.f);
+        ImGui::SliderFloat3(tr("lighting.lightDir"), &s.lightDir.x, -1.f, 1.f);
         if (glm::length(s.lightDir) > 1e-4f) s.lightDir = glm::normalize(s.lightDir);
     }
 
-    if (ImGui::CollapsingHeader("雾效", ImGuiTreeNodeFlags_DefaultOpen)) {
-        ImGui::Checkbox("启用雾效", &s.fogEnabled);
+    if (s.sections.fog &&
+        ImGui::CollapsingHeader(tr("section.fog"), ImGuiTreeNodeFlags_DefaultOpen)) {
+        ImGui::Checkbox(tr("fog.enable"), &s.fogEnabled);
         ImGui::BeginDisabled(!s.fogEnabled);
-        ImGui::SliderFloat("雾近", &s.fogNear, 0.1f, 20.f);
-        ImGui::SliderFloat("雾远", &s.fogFar,  s.fogNear + 0.1f, 100.f);
+        ImGui::SliderFloat(tr("fog.near"), &s.fogNear, 0.1f, 20.f);
+        ImGui::SliderFloat(tr("fog.far"),  &s.fogFar,  s.fogNear + 0.1f, 100.f);
         ImGui::EndDisabled();
     }
 
-    if (s.split == SplitMode::DiffShading) {
-        if (ImGui::CollapsingHeader("右视口光照", ImGuiTreeNodeFlags_DefaultOpen)) {
-            ImGui::ColorEdit3("右面片色",   &s.altBaseColor.x);
-            ImGui::SliderFloat ("右环境光", &s.altAmbient, 0.f, 1.f);
-            ImGui::SliderFloat3("右光源方向", &s.altLightDir.x, -1.f, 1.f);
+    if (s.split == SplitMode::DiffShading && s.sections.rightLighting) {
+        if (ImGui::CollapsingHeader(tr("section.rightLighting"), ImGuiTreeNodeFlags_DefaultOpen)) {
+            ImGui::ColorEdit3(tr("right.baseColor"), &s.altBaseColor.x);
+            ImGui::SliderFloat (tr("right.ambient"), &s.altAmbient, 0.f, 1.f);
+            ImGui::SliderFloat3(tr("right.lightDir"), &s.altLightDir.x, -1.f, 1.f);
             if (glm::length(s.altLightDir) > 1e-4f) s.altLightDir = glm::normalize(s.altLightDir);
-            ImGui::SliderFloat("右雾近", &s.altFogNear, 0.1f, 20.f);
-            ImGui::SliderFloat("右雾远", &s.altFogFar,  s.altFogNear + 0.1f, 100.f);
+            ImGui::SliderFloat(tr("right.fogNear"), &s.altFogNear, 0.1f, 20.f);
+            ImGui::SliderFloat(tr("right.fogFar"),  &s.altFogFar,  s.altFogNear + 0.1f, 100.f);
         }
     }
 
-    if (ImGui::CollapsingHeader("拾取")) {
+    if (s.sections.picking && ImGui::CollapsingHeader(tr("section.picking"))) {
         if (s.highlightedFace.has_value()) {
-            ImGui::Text("高亮面: #%u", s.highlightedFace.value());
-            if (ImGui::Button("取消高亮")) s.highlightedFace.reset();
+            ImGui::Text(tr("picking.face"), s.highlightedFace.value());
+            if (ImGui::Button(tr("picking.clear"))) s.highlightedFace.reset();
         } else {
-            ImGui::TextDisabled("(点击模型高亮三角面)");
+            ImGui::TextDisabled("%s", tr("picking.hint"));
         }
     }
 
-    // PMX 材质控制 (仅加载含材质的 PMX 时显示)
-    if (pmxLoaded && ImGui::CollapsingHeader("PMX 材质", ImGuiTreeNodeFlags_DefaultOpen)) {
-        ImGui::TextDisabled("材质层");
-        ImGui::Checkbox("Tex 贴图",   &s.pmx.enableTex);
-        ImGui::Checkbox("Toon 材质",  &s.pmx.enableToon);
-        ImGui::Checkbox("Sph 球面贴图", &s.pmx.enableSphere);
-        ImGui::Separator();
-        ImGui::TextDisabled("基础调整");
-        ImGui::SliderFloat("透明度", &s.pmx.alpha, 0.0f, 1.0f);
-        ImGui::Checkbox("颜色覆盖", &s.pmx.colorOverride);
-        if (s.pmx.colorOverride) {
-            ImGui::ColorEdit3("覆盖色", &s.pmx.overrideColor.x);
+    // 材质控制 (加载含材质的模型时显示: PMX / FBX / glTF / GLB)
+    if (materialsLoaded && s.sections.pmx &&
+        ImGui::CollapsingHeader(tr("section.pmx"), ImGuiTreeNodeFlags_DefaultOpen)) {
+        ImGui::TextDisabled("%s", tr("pmx.layers"));
+        ImGui::Checkbox(tr("pmx.tex"),    &s.pmx.enableTex);
+        // Toon/Sphere 仅对具备该数据的格式显示 (PMX)
+        if (hasToonSphere) {
+            ImGui::Checkbox(tr("pmx.toon"),   &s.pmx.enableToon);
+            ImGui::Checkbox(tr("pmx.sphere"), &s.pmx.enableSphere);
         }
-        ImGui::Checkbox("边缘 (Edge)", &s.pmx.showEdge);
+        ImGui::Separator();
+        ImGui::TextDisabled("%s", tr("pmx.adjust"));
+        ImGui::SliderFloat(tr("pmx.alpha"), &s.pmx.alpha, 0.0f, 1.0f);
+        ImGui::Checkbox(tr("pmx.colorOverride"), &s.pmx.colorOverride);
+        if (s.pmx.colorOverride) {
+            ImGui::ColorEdit3(tr("pmx.overrideColor"), &s.pmx.overrideColor.x);
+        }
+        ImGui::Checkbox(tr("pmx.edge"), &s.pmx.showEdge);
         if (s.pmx.showEdge) {
-            ImGui::SliderFloat("边缘宽度", &s.pmx.edgeWidth, 0.0f, 3.0f);
+            ImGui::SliderFloat(tr("pmx.edgeWidth"), &s.pmx.edgeWidth, 0.0f, 3.0f);
+        }
+    }
+
+    // 视图控制 (原菜单栏"视图"功能移入此处)
+    if (s.sections.view &&
+        ImGui::CollapsingHeader(tr("section.view"), ImGuiTreeNodeFlags_DefaultOpen)) {
+        if (ImGui::Button(tr("view.reset"))) req.resetCamera = true;
+        ImGui::SameLine();
+        if (ImGui::Button(tr("view.fit"))) req.fitToView = true;
+        ImGui::TextDisabled("%s", tr("view.splitMode"));
+        const char* splitLabels[] = { tr("view.split.off"),
+                                      tr("view.split.models"),
+                                      tr("view.split.shading") };
+        for (int i = 0; i < 3; ++i) {
+            if (i > 0) ImGui::SameLine();
+            const bool cur = (static_cast<int>(s.split) == i);
+            if (ImGui::RadioButton(splitLabels[i], cur)) {
+                s.split = static_cast<SplitMode>(i);
+            }
+        }
+        ImGui::TextDisabled("%s", tr("view.renderMode"));
+        const char* modeLabels[] = { tr("view.mode.solid"),
+                                     tr("view.mode.wire"),
+                                     tr("view.mode.solidwire") };
+        for (int i = 0; i < 3; ++i) {
+            if (i > 0) ImGui::SameLine();
+            const bool cur = (static_cast<int>(s.mode) == i);
+            if (ImGui::RadioButton(modeLabels[i], cur)) {
+                s.mode = static_cast<RenderMode>(i);
+            }
         }
     }
 
@@ -242,6 +283,7 @@ void Panel::drawSidePanel(ViewState& s, const UiRequest& /*req*/,
 }
 
 void Panel::drawStatus(const std::string& modelName) {
+    using i18n::tr;
     const float displayW = ImGui::GetIO().DisplaySize.x;
     const float statusH  = 32.0f;
     ImGui::SetNextWindowPos(ImVec2(0.0f, ImGui::GetIO().DisplaySize.y - statusH),
@@ -251,12 +293,11 @@ void Panel::drawStatus(const std::string& modelName) {
     ImGui::Begin("##status", nullptr,
                  ImGuiWindowFlags_NoDecoration |
                  ImGuiWindowFlags_NoInputs);
-    // 左侧标题,右侧模型名
-    std::string name = modelName.empty() ? "未加载" : modelName;
-    // 截断过长模型名
+    // 左侧标题,右侧模型名 (截断过长名称)
+    std::string name = modelName.empty() ? tr("status.noModel") : modelName;
     constexpr size_t kMaxName = 60;
     if (name.size() > kMaxName) name = name.substr(0, kMaxName - 3) + "...";
-    ImGui::Text("  棱镜模型查看器");
+    ImGui::Text("%s", tr("status.appName"));
     ImGui::SameLine(displayW * 0.30f);
     ImGui::TextDisabled("|  %s", name.c_str());
     ImGui::End();

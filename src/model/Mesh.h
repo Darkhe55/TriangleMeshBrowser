@@ -41,13 +41,13 @@ struct Mesh {
     // centerAndScale 实际应用的缩放系数(边缘等模型空间量换算用)
     float scaleApplied = 1.f;
 
-    // PMX 专属数据(其他格式为空)
-    std::vector<std::string>  pmxTexturePaths;  // 纹理相对路径列表(材质按索引引用)
+    // 材质数据 (PMX / FBX / glTF / GLB; 无材质的格式为空)
+    std::vector<std::string>  pmxTexturePaths;  // 纹理路径列表(材质按索引引用)
     std::vector<PmxMaterial>  pmxMaterials;     // 面索引范围连续且总和 = indices_.size()
-    std::vector<PmxBone>      pmxBones;
+    std::vector<PmxBone>      pmxBones;         // 仅 PMX 有值
 
     bool empty() const noexcept { return triangleCount == 0; }
-    bool hasPmxMaterials() const noexcept { return !pmxMaterials.empty(); }
+    bool hasPmxMaterials() const noexcept { return !pmxMaterials.empty(); }  // 含材质(任一格式)
 
     void computeNormals();           // 已有顶点情况
     void computeFaceNormals();       // flat 模式

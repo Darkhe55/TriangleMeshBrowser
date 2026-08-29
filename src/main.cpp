@@ -2,6 +2,7 @@
 // 棱镜模型查看器入口
 #include "app/Viewer.h"
 #include "utils/FileUtils.h"
+#include "utils/I18n.h"
 #include <iostream>
 #include <stdexcept>
 #include <string>
@@ -9,7 +10,7 @@
 
 int main(int argc, char* argv[]) {
     try {
-        prism::Viewer viewer(1920, 1080, "棱镜模型查看器");
+        prism::Viewer viewer(1920, 1080, prism::i18n::tr("app.title"));
 
         if (argc > 1) {
             std::string arg = argv[1];

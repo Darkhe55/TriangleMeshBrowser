@@ -1,8 +1,9 @@
 {
   "name": "prism-viewer",
-  "version-string": "0.3.0",
+  "version-string": "0.4.0",
   "description": "棱镜模型查看器 — 轻量 3D 模型浏览器",
   "dependencies": [
+    "assimp",
     "glfw3",
     "glew",
     "glm",
