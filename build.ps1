@@ -136,14 +136,18 @@ if (-not (Test-Path $BuildDir) -or $Reconfigure) {
     Write-Host "[4/5] CMake configure (first time / forced)..." -ForegroundColor Yellow
     New-Item -Path $BuildDir -ItemType Directory -Force | Out-Null
     $toolchain = Join-Path $vcpkg 'scripts\buildsystems\vcpkg.cmake'
+    $overlayPorts = Join-Path $ProjectRoot 'vcpkg-overlays\ports'
 
     $configArgs = @(
         '-S', "`"$SourceDir`""
         '-B', "`"$BuildDir`""
-        '-G', 'Visual Studio 17 2022'
+        # 生成器必须与 vcpkg 缓存库的工具集一致 (v145),否则静态库 STL 符号链接失败;
+        # 详见 README 构建章节。
+        '-G', 'Visual Studio 18 2026'
         '-A', 'x64'
         "-DCMAKE_TOOLCHAIN_FILE=`"$toolchain`""
         "-DVCPKG_TARGET_TRIPLET=$triplet"
+        "-DVCPKG_OVERLAY_PORTS=`"$overlayPorts`""
         '-DCMAKE_POLICY_DEFAULT_CMP0077=NEW'
     )
     Write-Host "  -> cmake $($configArgs -join ' ')"

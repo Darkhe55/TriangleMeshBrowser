@@ -57,12 +57,12 @@ A lightweight, standalone 3D triangle-mesh browser built with C++17 + OpenGL 3.3
 ## Quick Start (Pre-built Release) / 快速开始（预编译版本）
 
 1. Go to the [Releases](../../releases) page.
-2. Download `TriangleMeshBrowser-v0.4.0.zip` for the latest build.
+2. Download `TriangleMeshBrowser-v0.4.1.zip` for the latest build.
 3. Extract the zip and run `PrismViewer.exe`.
 
 --
 1. 前往 [Releases](../../releases) 页面。
-2. 下载最新版本的 `TriangleMeshBrowser-v0.4.0.zip`。
+2. 下载最新版本的 `TriangleMeshBrowser-v0.4.1.zip`。
 3. 解压并运行 `PrismViewer.exe`。
 
 No installer, no runtime — just run the `.exe`.
@@ -140,12 +140,19 @@ $vcpkgRoot = "<path-to-vcpkg>"
 $toolchain = "$vcpkgRoot\scripts\buildsystems\vcpkg.cmake"
 
 cmake -S . -B build `
-  -G "Visual Studio 17 2022" -A x64 `
+  -G "Visual Studio 18 2026" -A x64 `
   -DCMAKE_TOOLCHAIN_FILE="$toolchain" `
-  -DVCPKG_TARGET_TRIPLET="$triplet"
+  -DVCPKG_TARGET_TRIPLET="$triplet" `
+  -DVCPKG_OVERLAY_PORTS="vcpkg-overlays\ports"
 
 cmake --build build --config Release --parallel
 ```
+
+> Note / 注意：The generator must match the toolset of your vcpkg binary cache (v145 ⇒ "Visual Studio 18 2026").
+> The overlay port in `vcpkg-overlays/ports/assimp` builds Assimp with only the FBX and glTF/GLB importers enabled, cutting the final executable roughly in half.
+>
+> 生成器必须与 vcpkg 二进制缓存的工具集一致（v145 ⇒ "Visual Studio 18 2026"）。
+> `vcpkg-overlays/ports/assimp` 中的 overlay port 会只编译 FBX 与 glTF/GLB 两个导入器，可使最终可执行文件体积减少约一半。
 
 The output binary will be at `build\Release\PrismViewer.exe`.
 
@@ -202,6 +209,7 @@ Extensions are case-insensitive. / 扩展名不区分大小写。
 TriangleMeshBrowser/
 ├── CMakeLists.txt              # CMake build definition / CMake 构建定义
 ├── vcpkg.json                  # Dependency manifest (vcpkg) / 依赖清单
+├── vcpkg-overlays/             # vcpkg overlay ports (slim Assimp) / vcpkg overlay port (瘦身版 Assimp)
 ├── build.ps1                   # One-click build script / 一键编译脚本
 ├── setup.ps1                   # Environment sanity check / 环境检查脚本
 ├── README.md

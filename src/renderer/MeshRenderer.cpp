@@ -12,7 +12,6 @@ void MeshRenderer::clear() noexcept {
     vbo_.reset();
     ebo_.reset();
     lineVao_.reset();
-    lineVbo_.reset();
     lineEbo_.reset();
     pickVao_.reset();
     pickVbo_.reset();
@@ -100,19 +99,15 @@ void MeshRenderer::upload(const Mesh& mesh) {
     }
     if (!edges.empty()) {
         edgeIndexCount_ = static_cast<std::uint32_t>(edges.size());
-        GLuint lvao = 0, lvbo = 0, lebo = 0;
+        GLuint lvao = 0, lebo = 0;
         glGenVertexArrays(1, &lvao);
-        glGenBuffers(1, &lvbo);
         glGenBuffers(1, &lebo);
         lineVao_.reset(lvao);
-        lineVbo_.reset(lvbo);
         lineEbo_.reset(lebo);
 
         glBindVertexArray(lvao);
-        glBindBuffer(GL_ARRAY_BUFFER, lvbo);
-        glBufferData(GL_ARRAY_BUFFER,
-                     static_cast<GLsizeiptr>(mesh.vertices_.size() * sizeof(VertexPN)),
-                     mesh.vertices_.data(), GL_STATIC_DRAW);
+        // 共享主 VBO,避免顶点数据重复占用显存与重复上传耗时 (线框只用 position 属性)
+        glBindBuffer(GL_ARRAY_BUFFER, vbo);
         glEnableVertexAttribArray(0);
         glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(VertexPN),
                               reinterpret_cast<void*>(offsetof(VertexPN, position)));
