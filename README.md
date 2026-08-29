@@ -15,8 +15,8 @@ A lightweight, standalone 3D triangle-mesh browser built with C++17 + OpenGL 3.3
 
 ## Features / 功能
 
-- **Multi-format loading**: OBJ, STL (ASCII + Binary), PLY (ASCII + Binary Little Endian), OFF / NOFF / COFF / CNOFF
-- **多格式加载**：OBJ、STL（ASCII + 二进制）、PLY（ASCII + 二进制小端）、OFF / NOFF / COFF / CNOFF
+- **Multi-format loading**: OBJ, STL (ASCII + Binary), PLY (ASCII + Binary Little Endian), OFF / NOFF / COFF / CNOFF, PMX 2.0 / 2.1 (geometry only)
+- **多格式加载**：OBJ、STL（ASCII + 二进制）、PLY（ASCII + 二进制小端）、OFF / NOFF / COFF / CNOFF、PMX 2.0 / 2.1（仅几何数据）
 - **Built-in geometry generators**: Cube, sphere, cylinder, torus, cone — generated at runtime, no external assets required
 - **内置几何体生成器**：立方体、球体、圆柱、圆环、圆锥 — 运行时生成，无需外部素材
 - **Orbit camera**: Left-drag to rotate, middle/right-drag to pan, scroll to zoom, `F` to reset, `Shift+F` to frame selection
@@ -169,6 +169,7 @@ The output binary will be at `build\Release\PrismViewer.exe`.
 | `.stl` | STereoLithography | ASCII + Binary / 二进制 |
 | `.ply` | Polygon File Format | ASCII + Binary Little Endian / 二进制小端 |
 | `.off` `.noff` `.coff` `.cnoff` | Object File Format | All colour variants / 全部颜色变体 |
+| `.pmx` | MikuMikuDance PMX | 2.0 / 2.1, geometry only (no materials/bones) / 仅几何（不含材质/骨骼） |
 
 Extensions are case-insensitive. / 扩展名不区分大小写。
 
