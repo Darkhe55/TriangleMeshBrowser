@@ -7,10 +7,12 @@ uniform mat4 uModel;
 uniform mat4 uView;
 uniform mat4 uProjection;
 uniform mat3 uNormalMatrix;
+uniform float uEdgeExpand;   // 沿法线外扩距离 (PMX 边缘反壳绘制用)
 
 out vec3 vNormal;
 
 void main() {
     vNormal = uNormalMatrix * aNormal;
-    gl_Position = uProjection * uView * uModel * vec4(aPos, 1.0);
+    vec3 pos = aPos + aNormal * uEdgeExpand;
+    gl_Position = uProjection * uView * uModel * vec4(pos, 1.0);
 }

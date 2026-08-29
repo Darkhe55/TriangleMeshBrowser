@@ -14,6 +14,7 @@ public:
     void upload(const Mesh& mesh);
 
     void drawSolid() const;
+    void drawSolidRange(std::uint32_t firstIndex, std::uint32_t count) const;  // 按索引区间绘制 (PMX 材质分段)
     void drawWireframe() const;
     void drawPicker() const;     // 拾取用 - per-face flat
 

@@ -10,9 +10,10 @@ namespace prism {
 void Panel::draw(ViewState& s, UiRequest& req,
                  const std::string& currentModelName,
                  std::uint32_t vertexCount, std::uint32_t triangleCount,
-                 const glm::vec3& bboxMin, const glm::vec3& bboxMax) {
+                 const glm::vec3& bboxMin, const glm::vec3& bboxMax,
+                 bool pmxLoaded) {
     drawMenuBar(s, req);
-    drawSidePanel(s, req, currentModelName, vertexCount, triangleCount, bboxMin, bboxMax);
+    drawSidePanel(s, req, currentModelName, vertexCount, triangleCount, bboxMin, bboxMax, pmxLoaded);
     drawStatus(currentModelName);
 
     if (!req.toast.empty()) {
@@ -72,6 +73,9 @@ void Panel::drawMenuBar(ViewState& s, UiRequest& req) {
         }
         if (ImGui::MenuItem("导出截图 (PNG)...")) {
             req.exportScreenshot = true;
+        }
+        if (ImGui::MenuItem("导出模型...")) {
+            req.exportModel = true;
         }
         ImGui::Separator();
         if (ImGui::MenuItem("关闭模型")) {
@@ -137,7 +141,8 @@ void Panel::drawMenuBar(ViewState& s, UiRequest& req) {
 void Panel::drawSidePanel(ViewState& s, const UiRequest& /*req*/,
                           const std::string& modelName,
                           std::uint32_t vCount, std::uint32_t tCount,
-                          const glm::vec3& bboxMin, const glm::vec3& bboxMax) {
+                          const glm::vec3& bboxMin, const glm::vec3& bboxMax,
+                          bool pmxLoaded) {
     // 自适应布局:宽度 = max(340, 屏幕宽 * 0.22),封顶 560;高度 = 屏幕高 - 菜单条 - 状态栏
     const ImVec2 display = ImGui::GetIO().DisplaySize;
     const float menuH    = ImGui::GetFrameHeight();
@@ -210,6 +215,25 @@ void Panel::drawSidePanel(ViewState& s, const UiRequest& /*req*/,
             if (ImGui::Button("取消高亮")) s.highlightedFace.reset();
         } else {
             ImGui::TextDisabled("(点击模型高亮三角面)");
+        }
+    }
+
+    // PMX 材质控制 (仅加载含材质的 PMX 时显示)
+    if (pmxLoaded && ImGui::CollapsingHeader("PMX 材质", ImGuiTreeNodeFlags_DefaultOpen)) {
+        ImGui::TextDisabled("材质层");
+        ImGui::Checkbox("Tex 贴图",   &s.pmx.enableTex);
+        ImGui::Checkbox("Toon 材质",  &s.pmx.enableToon);
+        ImGui::Checkbox("Sph 球面贴图", &s.pmx.enableSphere);
+        ImGui::Separator();
+        ImGui::TextDisabled("基础调整");
+        ImGui::SliderFloat("透明度", &s.pmx.alpha, 0.0f, 1.0f);
+        ImGui::Checkbox("颜色覆盖", &s.pmx.colorOverride);
+        if (s.pmx.colorOverride) {
+            ImGui::ColorEdit3("覆盖色", &s.pmx.overrideColor.x);
+        }
+        ImGui::Checkbox("边缘 (Edge)", &s.pmx.showEdge);
+        if (s.pmx.showEdge) {
+            ImGui::SliderFloat("边缘宽度", &s.pmx.edgeWidth, 0.0f, 3.0f);
         }
     }
 

@@ -15,8 +15,10 @@ A lightweight, standalone 3D triangle-mesh browser built with C++17 + OpenGL 3.3
 
 ## Features / 功能
 
-- **Multi-format loading**: OBJ, STL (ASCII + Binary), PLY (ASCII + Binary Little Endian), OFF / NOFF / COFF / CNOFF, PMX 2.0 / 2.1 (geometry only)
-- **多格式加载**：OBJ、STL（ASCII + 二进制）、PLY（ASCII + 二进制小端）、OFF / NOFF / COFF / CNOFF、PMX 2.0 / 2.1（仅几何数据）
+- **Multi-format loading**: OBJ, STL (ASCII + Binary), PLY (ASCII + Binary Little/Big Endian), OFF / NOFF / COFF / CNOFF, PMX 2.0 / 2.1 (geometry + textures/materials/bones)
+- **多格式加载**：OBJ、STL（ASCII + 二进制）、PLY（ASCII + 二进制小端/大端）、OFF / NOFF / COFF / CNOFF、PMX 2.0 / 2.1（几何 + 纹理/材质/骨骼）
+- **Model export / format conversion**: Export the current mesh as OBJ, STL (Binary), PLY (ASCII / Binary Little Endian) or OFF
+- **模型导出/格式转换**：将当前网格导出为 OBJ、STL（二进制）、PLY（ASCII / 二进制小端）或 OFF
 - **Built-in geometry generators**: Cube, sphere, cylinder, torus, cone — generated at runtime, no external assets required
 - **内置几何体生成器**：立方体、球体、圆柱、圆环、圆锥 — 运行时生成，无需外部素材
 - **Orbit camera**: Left-drag to rotate, middle/right-drag to pan, scroll to zoom, `F` to reset, `Shift+F` to frame selection
@@ -39,6 +41,8 @@ A lightweight, standalone 3D triangle-mesh browser built with C++17 + OpenGL 3.3
   - *对比不同光照* — 同一模型，不同光照/材质参数
 - **ImGui control panel**: Menu bar, side panel, status bar, CJK font support
 - **ImGui 控制面板**：菜单栏、侧栏、状态栏，支持中文字体
+- **PMX material panel**: Per-layer toggles (Tex / Toon / Sphere maps), global alpha, colour override, edge display with adjustable width
+- **PMX 材质面板**：材质层开关（Tex / Toon / Sph 贴图）、全局透明度、颜色覆盖、边缘显示与宽度调节
 
 ---
 
@@ -53,12 +57,12 @@ A lightweight, standalone 3D triangle-mesh browser built with C++17 + OpenGL 3.3
 ## Quick Start (Pre-built Release) / 快速开始（预编译版本）
 
 1. Go to the [Releases](../../releases) page.
-2. Download `TriangleMeshBrowser-v0.2.0.zip` for the latest build.
+2. Download `TriangleMeshBrowser-v0.3.0.zip` for the latest build.
 3. Extract the zip and run `PrismViewer.exe`.
 
 --
 1. 前往 [Releases](../../releases) 页面。
-2. 下载最新版本的 `TriangleMeshBrowser-v0.2.0.zip`。
+2. 下载最新版本的 `TriangleMeshBrowser-v0.3.0.zip`。
 3. 解压并运行 `PrismViewer.exe`。
 
 No installer, no runtime — just run the `.exe`.
@@ -167,9 +171,9 @@ The output binary will be at `build\Release\PrismViewer.exe`.
 |-------------------|--------------|-------------|
 | `.obj` | Wavefront OBJ | ASCII |
 | `.stl` | STereoLithography | ASCII + Binary / 二进制 |
-| `.ply` | Polygon File Format | ASCII + Binary Little Endian / 二进制小端 |
+| `.ply` | Polygon File Format | ASCII + Binary Little/Big Endian / 二进制小端/大端 |
 | `.off` `.noff` `.coff` `.cnoff` | Object File Format | All colour variants / 全部颜色变体 |
-| `.pmx` | MikuMikuDance PMX | 2.0 / 2.1, geometry only (no materials/bones) / 仅几何（不含材质/骨骼） |
+| `.pmx` | MikuMikuDance PMX | 2.0 / 2.1, geometry + textures + materials + bones / 几何 + 纹理 + 材质 + 骨骼 |
 
 Extensions are case-insensitive. / 扩展名不区分大小写。
 
@@ -214,11 +218,14 @@ TriangleMeshBrowser/
 │   │   └── shaders/            # GLSL 3.30 shader sources / GLSL 3.30 着色器源码
 │   ├── model/
 │   │   ├── Mesh.{h,cpp}        # Unified mesh representation / 统一网格表示
+│   │   ├── PmxData.h           # PMX material/texture/bone structs / PMX 材质/纹理/骨骼结构
 │   │   ├── ModelLoader.{h,cpp} # Format-dispatch loader / 格式分发加载器
 │   │   ├── OBJLoader.{h,cpp}   # Wavefront OBJ parser / OBJ 解析器
 │   │   ├── STLLoader.{h,cpp}   # STL parser (ASCII + binary) / STL 解析器
 │   │   ├── PLYLoader.{h,cpp}   # PLY parser / PLY 解析器
 │   │   ├── OFFLoader.{h,cpp}   # OFF/NOFF/COFF/CNOFF parser / OFF 解析器
+│   │   ├── PMXLoader.{h,cpp}   # PMX 2.0/2.1 parser / PMX 解析器
+│   │   ├── MeshWriter.{h,cpp}  # Mesh exporter (OBJ/STL/PLY/OFF) / 网格导出器
 │   │   └── Procedural.{h,cpp}  # Runtime geometry generators / 运行时几何体生成器
 │   ├── ui/
 │   │   ├── Panel.{h,cpp}       # ImGui control panel / ImGui 控制面板
@@ -226,6 +233,7 @@ TriangleMeshBrowser/
 │   └── utils/
 │       ├── FileUtils.{h,cpp}   # File-system helpers / 文件系统辅助
 │       ├── StbWrite.{h,cpp}    # PNG writer (stb_image_write) / PNG 写入
+│       ├── StbImage.{h,cpp}    # Image reader (stb_image) / 图片读取
 │       └── ImeGuard.{h,cpp}    # IME context management / 输入法上下文管理
 └── assets/
     └── models/                 # Hand-authored sample models / 手写示例模型
@@ -291,8 +299,6 @@ All of these licenses are permissive and compatible with both open-source and pr
 
 ## Known Limitations / 已知限制
 
-- PLY only supports `binary_little_endian`; `binary_big_endian` is uncommon in practice and not implemented.
-- PLY 仅支持 `binary_little_endian`；`binary_big_endian` 在实际中很少见，未实现。
 - Large models (>1M triangles) may have a 1–2 second freeze on first load (main-thread parsing); background-thread loading is a planned improvement.
 - 大模型（>100 万三角形）首次加载可能有 1–2 秒卡顿（主线程解析）；后台线程加载是计划中的改进。
 - No visual feedback (e.g., highlight border) during drag-and-drop; only GLFW's native drop event is used.

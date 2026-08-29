@@ -13,6 +13,10 @@ void Mesh::clear() noexcept {
     bboxMin = bboxMax = glm::vec3(0.f);
     triangleCount = 0;
     indexed_ = false;
+    scaleApplied = 1.f;
+    pmxTexturePaths.clear();
+    pmxMaterials.clear();
+    pmxBones.clear();
 }
 
 void Mesh::computeBBox() {
@@ -34,6 +38,7 @@ void Mesh::centerAndScale(float targetRadius) {
     glm::vec3 extent = bboxMax - bboxMin;
     float maxDim = std::max({extent.x, extent.y, extent.z, 1e-6f});
     float scale = (targetRadius * 2.0f) / maxDim;
+    scaleApplied = scale;
     for (auto& v : vertices_) {
         v.position = (v.position - center) * scale;
     }
