@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.20)
 project(PrismViewer
-    VERSION 0.4.0
+    VERSION 0.4.1
     DESCRIPTION "棱镜模型查看器"
     LANGUAGES CXX)
 
@@ -22,11 +22,19 @@ add_compile_options(
 )
 
 # MSVC optimization flags per config (generator-expression list)
-set(_msvc_release_opts /O2 /Oi /GL /Gy)
+# Release: /O2 速度优化 /Oi 内建函数 /Ob3 激进内联 /GL+LTCG 全程序优化
+#          /Gy 函数级链接 /Gw 全局数据合并 /Zc:inline 剔除未用内联 (配合链接器去死代码)
+set(_msvc_release_opts /O2 /Oi /Ob3 /GL /Gy /Gw /Zc:inline)
 set(_msvc_debug_opts   /Od /Zi)
 add_compile_options(
     "$<$<CONFIG:Release>:${_msvc_release_opts}>"
     "$<$<CONFIG:Debug>:${_msvc_debug_opts}>"
+)
+
+# Release 链接优化: 死代码剔除 + 相同代码折叠 (对静态链接的大型库如 Assimp 收益显著)
+set(_msvc_release_link_opts /LTCG /OPT:REF /OPT:ICF /INCREMENTAL:NO)
+add_link_options(
+    "$<$<CONFIG:Release>:${_msvc_release_link_opts}>"
 )
 
 # CRT: match vcpkg static libs (/MT); avoid LNK4098 conflicts.

@@ -534,7 +534,12 @@ void Viewer::renderSceneSingle(int vpW, int vpH) {
 }
 
 void Viewer::renderSceneSplit(int vpW, int vpH, int halfW) {
+    // 分屏时每个视口只有半宽,投影宽高比必须按视口自身计算,
+    // 否则沿用整窗宽高比会把模型横向压缩;渲染完恢复原值。
+    const int savedViewportW = cam_.viewportW;
+
     // 左视口
+    cam_.viewportW = halfW;
     glViewport(0, 0, halfW, vpH);
     glScissor(0, 0, halfW, vpH);
     glEnable(GL_SCISSOR_TEST);
@@ -542,6 +547,7 @@ void Viewer::renderSceneSplit(int vpW, int vpH, int halfW) {
     glDisable(GL_SCISSOR_TEST);
 
     // 右视口
+    cam_.viewportW = vpW - halfW;
     glViewport(halfW, 0, vpW - halfW, vpH);
     glScissor(halfW, 0, vpW - halfW, vpH);
     glEnable(GL_SCISSOR_TEST);
@@ -605,6 +611,7 @@ void Viewer::renderSceneSplit(int vpW, int vpH, int halfW) {
         rendererB_.drawSolid();
     }
     glDisable(GL_SCISSOR_TEST);
+    cam_.viewportW = savedViewportW;
     glViewport(0, 0, vpW, vpH);
 }
 

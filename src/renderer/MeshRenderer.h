@@ -31,8 +31,7 @@ private:
     BufferPtr vbo_{};
     BufferPtr ebo_{};
     VaoPtr    lineVao_{};
-    BufferPtr lineVbo_{};
-    BufferPtr lineEbo_{};
+    BufferPtr lineEbo_{};   // 线框索引; 顶点数据共享主 vbo_
     VaoPtr    pickVao_{};
     BufferPtr pickVbo_{};
 
