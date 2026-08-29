@@ -70,8 +70,9 @@ private:
     std::unique_ptr<Mesh>         meshB_;
     MeshRenderer                  rendererB_;
 
-    // PMX 纹理缓存(与 Mesh::pmxTexturePaths 同序,加载失败为空句柄)
-    std::vector<TexturePtr>       pmxTexs_;
+    // 材质纹理缓存(与 Mesh::pmxTexturePaths 同序,加载失败为空句柄)
+    // 适用于所有含材质的格式 (PMX / FBX / glTF / GLB)
+    std::vector<TexturePtr>       modelTexs_;
 
     // ---------- 内部方法 ----------
     bool  initGL();
@@ -86,11 +87,11 @@ private:
     void renderSceneSingle(int vpW, int vpH);
     void renderSceneSplit (int vpW, int vpH, int halfW);
 
-    // PMX 材质渲染与纹理管理
-    void   loadPmxTextures(const std::filesystem::path& pmxDir, const Mesh& mesh);
-    void   renderPmxMaterials();
-    GLuint pmxTexId(int index) const;
-    void   applyPlainMaterialUniforms();  // 非 PMX 路径:不透明/无贴图
+    // 材质渲染与纹理管理 (PMX / FBX / glTF / GLB 通用)
+    void   loadModelTextures(const std::filesystem::path& modelDir, const Mesh& mesh);
+    void   renderModelMaterials();
+    GLuint modelTexId(int index) const;
+    void   applyPlainMaterialUniforms();  // 无材质路径:不透明/无贴图
 
     // 拾取
     void doPicking(double sx, double sy);

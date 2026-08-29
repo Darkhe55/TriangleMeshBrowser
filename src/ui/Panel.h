@@ -55,6 +55,18 @@ struct PmxViewSettings {
     float edgeWidth = 1.0f;
 };
 
+// 控制台各子板块的显示开关 (由菜单栏"控制台"列表控制)
+struct SectionVisibility {
+    bool modelInfo     = true;
+    bool colors        = true;
+    bool lighting      = true;
+    bool fog           = true;
+    bool rightLighting = true;
+    bool picking       = true;
+    bool pmx           = true;
+    bool view          = true;
+};
+
 struct ViewState {
     RenderMode  mode = RenderMode::SolidWire;
     SplitMode   split = SplitMode::Off;
@@ -85,6 +97,9 @@ struct ViewState {
     // PMX 材质控制
     PmxViewSettings pmx;
 
+    // 控制台子板块显示开关
+    SectionVisibility sections;
+
     // 设置:鼠标反转(默认反转 X,Y 不反转)
     bool invertX = true;
     bool invertY = false;
@@ -101,12 +116,14 @@ struct ViewState {
 
 class Panel {
 public:
-    // 必须在 ImGui 新帧内调用; pmxLoaded = 当前模型含 PMX 材质数据
+    // 必须在 ImGui 新帧内调用;
+    // materialsLoaded = 当前模型含材质数据 (PMX / FBX / glTF / GLB)
+    // hasToonSphere   = 材质含 Toon/Sphere 数据 (仅 PMX),控制对应开关的显示
     void draw(ViewState& s, UiRequest& req,
               const std::string& currentModelName,
               std::uint32_t vertexCount, std::uint32_t triangleCount,
               const glm::vec3& bboxMin, const glm::vec3& bboxMax,
-              bool pmxLoaded);
+              bool materialsLoaded, bool hasToonSphere);
 
     // 文件路径(由 openFileDialog 触发后保存)
     std::string& pickedFilePath() noexcept { return pickedPath_; }
@@ -115,12 +132,12 @@ private:
     std::string pickedPath_;
     std::string toastText_;
     float toastTimer_ = 0.f;
-    void drawMenuBar(ViewState& s, UiRequest& req);
-    void drawSidePanel(ViewState& s, const UiRequest& req,
+    void drawMenuBar(ViewState& s, UiRequest& req, bool materialsLoaded);
+    void drawSidePanel(ViewState& s, UiRequest& req,
                        const std::string& modelName,
                        std::uint32_t vCount, std::uint32_t tCount,
                        const glm::vec3& bboxMin, const glm::vec3& bboxMax,
-                       bool pmxLoaded);
+                       bool materialsLoaded, bool hasToonSphere);
     void drawStatus(const std::string& modelName);
     void drawToast();
 };

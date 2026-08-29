@@ -15,8 +15,8 @@ A lightweight, standalone 3D triangle-mesh browser built with C++17 + OpenGL 3.3
 
 ## Features / 功能
 
-- **Multi-format loading**: OBJ, STL (ASCII + Binary), PLY (ASCII + Binary Little/Big Endian), OFF / NOFF / COFF / CNOFF, PMX 2.0 / 2.1 (geometry + textures/materials/bones)
-- **多格式加载**：OBJ、STL（ASCII + 二进制）、PLY（ASCII + 二进制小端/大端）、OFF / NOFF / COFF / CNOFF、PMX 2.0 / 2.1（几何 + 纹理/材质/骨骼）
+- **Multi-format loading**: OBJ, STL (ASCII + Binary), PLY (ASCII + Binary Little/Big Endian), OFF / NOFF / COFF / CNOFF, PMX 2.0 / 2.1 (geometry + textures/materials/bones), FBX, glTF / GLB (via Assimp)
+- **多格式加载**：OBJ、STL（ASCII + 二进制）、PLY（ASCII + 二进制小端/大端）、OFF / NOFF / COFF / CNOFF、PMX 2.0 / 2.1（几何 + 纹理/材质/骨骼）、FBX、glTF / GLB（由 Assimp 解析）
 - **Model export / format conversion**: Export the current mesh as OBJ, STL (Binary), PLY (ASCII / Binary Little Endian) or OFF
 - **模型导出/格式转换**：将当前网格导出为 OBJ、STL（二进制）、PLY（ASCII / 二进制小端）或 OFF
 - **Built-in geometry generators**: Cube, sphere, cylinder, torus, cone — generated at runtime, no external assets required
@@ -41,8 +41,8 @@ A lightweight, standalone 3D triangle-mesh browser built with C++17 + OpenGL 3.3
   - *对比不同光照* — 同一模型，不同光照/材质参数
 - **ImGui control panel**: Menu bar, side panel, status bar, CJK font support
 - **ImGui 控制面板**：菜单栏、侧栏、状态栏，支持中文字体
-- **PMX material panel**: Per-layer toggles (Tex / Toon / Sphere maps), global alpha, colour override, edge display with adjustable width
-- **PMX 材质面板**：材质层开关（Tex / Toon / Sph 贴图）、全局透明度、颜色覆盖、边缘显示与宽度调节
+- **Material control panel**: Per-layer toggles (Tex / Toon / Sphere maps), global alpha, colour override, edge display with adjustable width — available for any format with material data (PMX / FBX / glTF / GLB)
+- **材质控制面板**：材质层开关（Tex / Toon / Sph 贴图）、全局透明度、颜色覆盖、边缘显示与宽度调节 — 对所有含材质数据的格式可用（PMX / FBX / glTF / GLB）
 
 ---
 
@@ -57,12 +57,12 @@ A lightweight, standalone 3D triangle-mesh browser built with C++17 + OpenGL 3.3
 ## Quick Start (Pre-built Release) / 快速开始（预编译版本）
 
 1. Go to the [Releases](../../releases) page.
-2. Download `TriangleMeshBrowser-v0.3.0.zip` for the latest build.
+2. Download `TriangleMeshBrowser-v0.4.0.zip` for the latest build.
 3. Extract the zip and run `PrismViewer.exe`.
 
 --
 1. 前往 [Releases](../../releases) 页面。
-2. 下载最新版本的 `TriangleMeshBrowser-v0.3.0.zip`。
+2. 下载最新版本的 `TriangleMeshBrowser-v0.4.0.zip`。
 3. 解压并运行 `PrismViewer.exe`。
 
 No installer, no runtime — just run the `.exe`.
@@ -102,6 +102,7 @@ The following libraries are declared in `vcpkg.json` and fetched + built by vcpk
 | **GLM** | 1.0.3 | Header-only maths library (vectors, matrices) / 纯头文件数学库（向量、矩阵） | [MIT (Happy Bunny)](https://github.com/g-truc/glm/blob/master/copying.txt) |
 | **Dear ImGui** | 1.92.8 | Immediate-mode GUI (docking branch) / 即时模式 GUI（docking 分支） | [MIT](https://github.com/ocornut/imgui/blob/master/LICENSE.txt) |
 | **stb** | latest / 最新 | Public-domain single-file libraries (`stb_image_write`) / 公共领域单文件库 | [Public Domain / MIT](https://github.com/nothings/stb/blob/master/LICENSE) |
+| **Assimp** | 5.4.x | FBX / glTF / GLB import / FBX / glTF / GLB 导入 | [BSD-3-Clause](https://github.com/assimp/assimp/blob/master/LICENSE) |
 
 You do **not** need to manually download or install any of these — vcpkg handles everything.
 
@@ -114,10 +115,10 @@ You do **not** need to manually download or install any of these — vcpkg handl
 .\build.ps1
 ```
 
-The first build takes **5–8 minutes** (vcpkg downloads + compiles the 5 libraries, then links the final binary).
+The first build takes **10–15 minutes** (vcpkg downloads + compiles the 6 libraries — Assimp is the heavyweight — then links the final binary).
 Subsequent incremental builds finish in seconds.
 
-首次编译约需 **5–8 分钟**（vcpkg 下载 + 编译 5 个库 + 链接最终二进制）。后续增量编译只需数秒。
+首次编译约需 **10–15 分钟**（vcpkg 下载 + 编译 6 个库，其中 Assimp 最耗时 + 链接最终二进制）。后续增量编译只需数秒。
 
 ### Build Options / 编译选项
 
@@ -174,6 +175,8 @@ The output binary will be at `build\Release\PrismViewer.exe`.
 | `.ply` | Polygon File Format | ASCII + Binary Little/Big Endian / 二进制小端/大端 |
 | `.off` `.noff` `.coff` `.cnoff` | Object File Format | All colour variants / 全部颜色变体 |
 | `.pmx` | MikuMikuDance PMX | 2.0 / 2.1, geometry + textures + materials + bones / 几何 + 纹理 + 材质 + 骨骼 |
+| `.fbx` | Filmbox FBX | ASCII + Binary, via Assimp / 经 Assimp 解析 |
+| `.gltf` `.glb` | glTF 2.0 | JSON + GLB binary container, via Assimp / JSON + GLB 二进制容器，经 Assimp 解析 |
 
 Extensions are case-insensitive. / 扩展名不区分大小写。
 
@@ -225,6 +228,9 @@ TriangleMeshBrowser/
 │   │   ├── PLYLoader.{h,cpp}   # PLY parser / PLY 解析器
 │   │   ├── OFFLoader.{h,cpp}   # OFF/NOFF/COFF/CNOFF parser / OFF 解析器
 │   │   ├── PMXLoader.{h,cpp}   # PMX 2.0/2.1 parser / PMX 解析器
+│   │   ├── FBXLoader.{h,cpp}   # FBX importer (Assimp) / FBX 导入器
+│   │   ├── GLTFLoader.{h,cpp}  # glTF/GLB importer (Assimp) / glTF/GLB 导入器
+│   │   ├── AssimpCommon.{h,cpp}# Shared Assimp scene flattening / Assimp 公共导入逻辑
 │   │   ├── MeshWriter.{h,cpp}  # Mesh exporter (OBJ/STL/PLY/OFF) / 网格导出器
 │   │   └── Procedural.{h,cpp}  # Runtime geometry generators / 运行时几何体生成器
 │   ├── ui/
@@ -255,8 +261,8 @@ TriangleMeshBrowser/
 - **无不安全内存操作**：不使用 `malloc`；`reinterpret_cast` 仅在 STL/PLY 二进制字节流读取时使用，集中在 IO 层。
 - **Fully static linking**: vcpkg `x64-windows-static` triplet; the binary depends only on Windows system DLLs.
 - **完全静态链接**：vcpkg `x64-windows-static` triplet；二进制仅依赖 Windows 系统 DLL。
-- **Original code**: Every source file is original work; only open-source libraries are linked (GLFW, ImGui, GLM, GLEW, stb).
-- **原创代码**：所有源文件均为原创；仅链接开源库（GLFW、ImGui、GLM、GLEW、stb）。
+- **Original code**: Every source file is original work; only open-source libraries are linked (GLFW, ImGui, GLM, GLEW, stb, Assimp).
+- **原创代码**：所有源文件均为原创；仅链接开源库（GLFW、ImGui、GLM、GLEW、stb、Assimp）。
 - **No external assets**: Sample models are hand-written `.obj` files; procedural geometry is generated at runtime.
 - **无外部素材**：示例模型为手写 `.obj` 文件；几何体在运行时程序化生成。
 
@@ -283,6 +289,7 @@ This project links against the following open-source libraries. **None of their 
 | **GLM** | 1.0.3 | [MIT (Happy Bunny)](https://opensource.org/licenses/MIT) | https://github.com/g-truc/glm |
 | **Dear ImGui** | 1.92.8 | [MIT](https://opensource.org/licenses/MIT) | https://github.com/ocornut/imgui |
 | **stb** | latest / 最新 | [Public Domain](https://unlicense.org/) / [MIT](https://opensource.org/licenses/MIT) | https://github.com/nothings/stb |
+| **Assimp** | 5.4.x | [BSD-3-Clause](https://opensource.org/licenses/BSD-3-Clause) | https://github.com/assimp/assimp |
 
 #### Quick License Summaries / 许可证简要说明
 
@@ -290,6 +297,7 @@ This project links against the following open-source libraries. **None of their 
 - **Modified BSD**: Freely use, modify, distribute. Keep the copyright notice and disclaimer. / 自由使用、修改、分发。保留版权声明和免责声明。
 - **MIT**: Freely use, modify, distribute. Keep the copyright notice. / 自由使用、修改、分发。保留版权声明。
 - **Public Domain (stb)**: No restrictions whatsoever; attribution is appreciated but not required. / 无任何限制；署名感谢但不强制。
+- **BSD-3-Clause (Assimp)**: Freely use, modify, distribute. Keep the copyright notice and disclaimer; do not use the project's name for promotion. / 自由使用、修改、分发。保留版权声明和免责声明，不得用项目名进行推广。
 
 All of these licenses are permissive and compatible with both open-source and proprietary use.
 

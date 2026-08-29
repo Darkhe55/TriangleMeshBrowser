@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.20)
 project(PrismViewer
-    VERSION 0.3.0
+    VERSION 0.4.0
     DESCRIPTION "棱镜模型查看器"
     LANGUAGES CXX)
 
@@ -38,6 +38,7 @@ find_package(glfw3  CONFIG REQUIRED)
 find_package(GLEW   CONFIG REQUIRED)
 find_package(glm    CONFIG REQUIRED)
 find_package(imgui  CONFIG REQUIRED)
+find_package(assimp CONFIG REQUIRED)
 
 # stb is header-only in vcpkg; no CMake config shipped.
 # Use its include directory directly.
@@ -87,6 +88,12 @@ add_executable(PrismViewer
     src/model/PLYLoader.cpp
     src/model/OFFLoader.h
     src/model/OFFLoader.cpp
+    src/model/AssimpCommon.h
+    src/model/AssimpCommon.cpp
+    src/model/FBXLoader.h
+    src/model/FBXLoader.cpp
+    src/model/GLTFLoader.h
+    src/model/GLTFLoader.cpp
     src/model/PMXLoader.h
     src/model/PMXLoader.cpp
     src/model/Procedural.h
@@ -103,6 +110,8 @@ add_executable(PrismViewer
     src/utils/StbWrite.cpp
     src/utils/StbImage.h
     src/utils/StbImage.cpp
+    src/utils/I18n.h
+    src/utils/I18n.cpp
     src/utils/ImeGuard.h
     src/utils/ImeGuard.cpp
 )
@@ -148,6 +157,7 @@ target_link_libraries(PrismViewer PRIVATE
     GLEW::GLEW
     glm::glm
     imgui::imgui
+    assimp::assimp
     OpenGL::GL
     opengl32
     gdi32
