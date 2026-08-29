@@ -325,3 +325,15 @@ Issues and pull requests are welcome. Before opening a PR, please:
 Design inspired by various 3D mesh viewers in the open-source community.
 
 设计灵感来自开源社区中的多个 3D 网格查看器。
+
+---
+
+## Sponsor / 赞助支持
+
+If this project helps you, consider buying the author a cup of coffee ☕
+
+如果这个项目对你有帮助，欢迎赞助支持作者 ☕
+
+- **爱发电 (Afdian)**: <https://afdian.com/a/darkh>
+
+[![爱发电赞助](https://img.shields.io/badge/赞助-爱发电-eb59c2?logo=afdian&logoColor=white)](https://afdian.com/a/darkh)
