@@ -78,7 +78,7 @@ std::vector<std::uint8_t> readFileBinary(const fs::path& path) {
     if (!f) throw std::runtime_error("Cannot open file: " + wideToUtf8(path.wstring()));
     auto size = f.tellg();
     f.seekg(0, std::ios::beg);
-    std::vector<std::uint8_t> data(static_cast<size_t>(size > 0 ? size : 0));
+    std::vector<std::uint8_t> data(size > 0 ? static_cast<size_t>(size) : size_t{0});
     if (size > 0) f.read(reinterpret_cast<char*>(data.data()), size);
     return data;
 }

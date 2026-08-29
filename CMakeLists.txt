@@ -84,6 +84,8 @@ add_executable(PrismViewer
     src/model/PLYLoader.cpp
     src/model/OFFLoader.h
     src/model/OFFLoader.cpp
+    src/model/PMXLoader.h
+    src/model/PMXLoader.cpp
     src/model/Procedural.h
     src/model/Procedural.cpp
 
