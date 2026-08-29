@@ -102,7 +102,7 @@ The following libraries are declared in `vcpkg.json` and fetched + built by vcpk
 | **GLM** | 1.0.3 | Header-only maths library (vectors, matrices) / 纯头文件数学库（向量、矩阵） | [MIT (Happy Bunny)](https://github.com/g-truc/glm/blob/master/copying.txt) |
 | **Dear ImGui** | 1.92.8 | Immediate-mode GUI (docking branch) / 即时模式 GUI（docking 分支） | [MIT](https://github.com/ocornut/imgui/blob/master/LICENSE.txt) |
 | **stb** | latest / 最新 | Public-domain single-file libraries (`stb_image_write`) / 公共领域单文件库 | [Public Domain / MIT](https://github.com/nothings/stb/blob/master/LICENSE) |
-| **Assimp** | 5.4.x | FBX / glTF / GLB import / FBX / glTF / GLB 导入 | [BSD-3-Clause](https://github.com/assimp/assimp/blob/master/LICENSE) |
+| **Assimp** | 6.0.4 | FBX / glTF / GLB import / FBX / glTF / GLB 导入 | [BSD-3-Clause](https://github.com/assimp/assimp/blob/master/LICENSE) |
 
 You do **not** need to manually download or install any of these — vcpkg handles everything.
 
@@ -289,7 +289,7 @@ This project links against the following open-source libraries. **None of their 
 | **GLM** | 1.0.3 | [MIT (Happy Bunny)](https://opensource.org/licenses/MIT) | https://github.com/g-truc/glm |
 | **Dear ImGui** | 1.92.8 | [MIT](https://opensource.org/licenses/MIT) | https://github.com/ocornut/imgui |
 | **stb** | latest / 最新 | [Public Domain](https://unlicense.org/) / [MIT](https://opensource.org/licenses/MIT) | https://github.com/nothings/stb |
-| **Assimp** | 5.4.x | [BSD-3-Clause](https://opensource.org/licenses/BSD-3-Clause) | https://github.com/assimp/assimp |
+| **Assimp** | 6.0.4 | [BSD-3-Clause](https://opensource.org/licenses/BSD-3-Clause) | https://github.com/assimp/assimp |
 
 #### Quick License Summaries / 许可证简要说明
 
