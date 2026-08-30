@@ -276,6 +276,10 @@ void Panel::drawSidePanel(ViewState& s, UiRequest& req,
                 s.mode = static_cast<RenderMode>(i);
             }
         }
+        // 点云 (有顶点无三角面) 才显示点大小滑条
+        if (vCount > 0 && tCount == 0) {
+            ImGui::SliderFloat(tr("view.pointSize"), &s.pointSize, 1.0f, 10.0f);
+        }
     }
 
     ImGui::EndChild();  // ##scroll

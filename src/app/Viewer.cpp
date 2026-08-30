@@ -365,7 +365,8 @@ void Viewer::handleUiRequest() {
         ofn.hwndOwner = nullptr;
         ofn.lpstrFile = szFile;
         ofn.nMaxFile = sizeof(szFile);
-        ofn.lpstrFilter = "3D Models\0*.obj;*.stl;*.ply;*.off;*.pmx;*.fbx;*.gltf;*.glb\0All\0*.*\0";
+        ofn.lpstrFilter = "3D Models\0*.obj;*.stl;*.ply;*.off;*.pmx;*.fbx;*.gltf;*.glb;*.dae;*.3mf;*.usd;*.usda;*.usdc;*.usdz\0"
+                          "Point Clouds\0*.las;*.laz;*.e57\0All\0*.*\0";
         ofn.nFilterIndex = 1;
         ofn.Flags = OFN_PATHMUSTEXIST | OFN_FILEMUSTEXIST;
         if (GetOpenFileNameA(&ofn)) {
@@ -450,6 +451,10 @@ void Viewer::renderSceneSingle(int vpW, int vpH) {
     }
 
     if (state_.mode == RenderMode::Solid || state_.mode == RenderMode::SolidWire) {
+        if (mesh_ && mesh_->pointCloud) {
+            // 点云走独立路径 (无三角形/无光照,可用顶点色)
+            renderPointCloud();
+        } else {
         shaderMesh_.bind();
         shaderMesh_.setMat4 ("uModel", glm::mat4(1.f));
         shaderMesh_.setMat4 ("uView",  cam_.view());
@@ -473,6 +478,7 @@ void Viewer::renderSceneSingle(int vpW, int vpH) {
                 applyPlainMaterialUniforms();
                 renderer_.drawSolid();
             }
+        }
         }
     }
     if (state_.mode == RenderMode::Wireframe || state_.mode == RenderMode::SolidWire) {
@@ -518,6 +524,7 @@ void Viewer::renderSceneSingle(int vpW, int vpH) {
         shaderFlat_.setVec3("uLightDir", state_.lightDir);
         shaderFlat_.setFloat("uAmbient", 1.f);
         shaderFlat_.setFloat("uDiffuse", 0.f);
+        shaderFlat_.setFloat("uUseVertexColor", 0.f);
         glEnable(GL_CULL_FACE);
         glCullFace(GL_FRONT);  // 只画外扩后的背面,形成轮廓壳
         for (const auto& mat : mesh_->pmxMaterials) {
@@ -658,6 +665,23 @@ void Viewer::applyPlainMaterialUniforms() {
     shaderMesh_.setInt  ("uUseTexture", 0);
     shaderMesh_.setInt  ("uUseToon", 0);
     shaderMesh_.setInt  ("uUseSphere", 0);
+}
+
+void Viewer::renderPointCloud() {
+    // 点云: 无光照 (ambient=1, diffuse=0),优先用顶点色,否则用 baseColor
+    shaderFlat_.bind();
+    shaderFlat_.setMat4("uModel", glm::mat4(1.f));
+    shaderFlat_.setMat4("uView",  cam_.view());
+    shaderFlat_.setMat4("uProjection", cam_.projection());
+    shaderFlat_.setMat3("uNormalMatrix", glm::mat3(1.f));
+    shaderFlat_.setFloat("uEdgeExpand", 0.f);
+    shaderFlat_.setVec3 ("uLightDir", state_.lightDir);
+    shaderFlat_.setFloat("uAmbient", 1.f);
+    shaderFlat_.setFloat("uDiffuse", 0.f);
+    shaderFlat_.setVec3 ("uColor", state_.baseColor);
+    shaderFlat_.setFloat("uUseVertexColor", renderer_.hasPointColors() ? 1.f : 0.f);
+    glPointSize(state_.pointSize);
+    renderer_.drawPoints();
 }
 
 void Viewer::renderModelMaterials() {

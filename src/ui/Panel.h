@@ -112,6 +112,9 @@ struct ViewState {
     bool showAxisGizmo   = true;
     bool showGrid        = true;
     bool showStatusBar   = true;
+
+    // 点云显示 (仅对点云格式生效)
+    float pointSize      = 2.0f;
 };
 
 class Panel {

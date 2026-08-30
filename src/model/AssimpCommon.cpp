@@ -217,7 +217,7 @@ std::unique_ptr<Mesh> importWithAssimp(const std::vector<std::uint8_t>& data,
                                        const std::string& hint,
                                        const std::filesystem::path& modelDir,
                                        const std::string& fileName,
-                                       bool respectSceneUpAxis) {
+                                       UpAxisPolicy axisPolicy) {
     Assimp::Importer importer;
     const unsigned flags =
         aiProcess_Triangulate |
@@ -231,8 +231,14 @@ std::unique_ptr<Mesh> importWithAssimp(const std::vector<std::uint8_t>& data,
                                  std::string(importer.GetErrorString()));
     }
 
-    // FBX 文件自带轴向信息,仅 +Y 朝上需要转换; glTF 恒为 +Y
-    const bool convert = !respectSceneUpAxis || sceneUpAxis(scene) == 1;
+    // 按格式上轴策略决定是否转 +Z 朝上:
+    // Convert=恒转, Keep=不转, FromMetadata=读元数据 (仅 +Y 转)
+    bool convert = false;
+    switch (axisPolicy) {
+        case UpAxisPolicy::Convert:      convert = true; break;
+        case UpAxisPolicy::Keep:         convert = false; break;
+        case UpAxisPolicy::FromMetadata: convert = (sceneUpAxis(scene) == 1); break;
+    }
 
     auto mesh = std::make_unique<Mesh>();
     mesh->indexed_ = true;

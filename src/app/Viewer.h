@@ -92,6 +92,7 @@ private:
     void   renderModelMaterials();
     GLuint modelTexId(int index) const;
     void   applyPlainMaterialUniforms();  // 无材质路径:不透明/无贴图
+    void   renderPointCloud();            // 点云路径 (LAS/LAZ/E57)
 
     // 拾取
     void doPicking(double sx, double sy);

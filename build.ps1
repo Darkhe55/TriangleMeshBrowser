@@ -137,6 +137,7 @@ if (-not (Test-Path $BuildDir) -or $Reconfigure) {
     New-Item -Path $BuildDir -ItemType Directory -Force | Out-Null
     $toolchain = Join-Path $vcpkg 'scripts\buildsystems\vcpkg.cmake'
     $overlayPorts = Join-Path $ProjectRoot 'vcpkg-overlays\ports'
+    $overlayTriplets = Join-Path $ProjectRoot 'vcpkg-overlays\triplets'
 
     $configArgs = @(
         '-S', "`"$SourceDir`""
@@ -148,6 +149,7 @@ if (-not (Test-Path $BuildDir) -or $Reconfigure) {
         "-DCMAKE_TOOLCHAIN_FILE=`"$toolchain`""
         "-DVCPKG_TARGET_TRIPLET=$triplet"
         "-DVCPKG_OVERLAY_PORTS=`"$overlayPorts`""
+        "-DVCPKG_OVERLAY_TRIPLETS=`"$overlayTriplets`""
         '-DCMAKE_POLICY_DEFAULT_CMP0077=NEW'
     )
     Write-Host "  -> cmake $($configArgs -join ' ')"

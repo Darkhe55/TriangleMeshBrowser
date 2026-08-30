@@ -15,8 +15,11 @@ void MeshRenderer::clear() noexcept {
     lineEbo_.reset();
     pickVao_.reset();
     pickVbo_.reset();
-    triCount_ = indexCount_ = edgeIndexCount_ = 0;
+    pointVao_.reset();
+    pointVbo_.reset();
+    triCount_ = indexCount_ = edgeIndexCount_ = pointCount_ = 0;
     indexed_ = false;
+    pointHasColor_ = false;
 }
 
 static void computeEdgeIndices(const std::vector<std::uint32_t>& triIndices,
@@ -47,6 +50,40 @@ void MeshRenderer::upload(const Mesh& mesh) {
     indexed_   = mesh.indexed_;
     indexCount_ = static_cast<std::uint32_t>(mesh.indices_.size());
     edgeIndexCount_ = 0;
+
+    // 点云: 单独上传位置+颜色,早退(无三角形/线框/拾取)
+    if (mesh.pointCloud) {
+        pointCount_ = static_cast<std::uint32_t>(mesh.vertices_.size());
+        if (pointCount_ == 0) return;
+        const bool hasColor = mesh.pointColors.size() == mesh.vertices_.size();
+        pointHasColor_ = hasColor;
+        std::vector<VertexPC> pts;
+        pts.reserve(mesh.vertices_.size());
+        for (size_t i = 0; i < mesh.vertices_.size(); ++i) {
+            VertexPC p;
+            p.position = mesh.vertices_[i].position;
+            p.color = hasColor ? mesh.pointColors[i] : glm::vec3(1.f);
+            pts.push_back(p);
+        }
+        GLuint pvao = 0, pvbo = 0;
+        glGenVertexArrays(1, &pvao);
+        glGenBuffers(1, &pvbo);
+        pointVao_.reset(pvao);
+        pointVbo_.reset(pvbo);
+        glBindVertexArray(pvao);
+        glBindBuffer(GL_ARRAY_BUFFER, pvbo);
+        glBufferData(GL_ARRAY_BUFFER,
+                     static_cast<GLsizeiptr>(pts.size() * sizeof(VertexPC)),
+                     pts.data(), GL_STATIC_DRAW);
+        glEnableVertexAttribArray(0);
+        glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(VertexPC),
+                              reinterpret_cast<void*>(offsetof(VertexPC, position)));
+        glEnableVertexAttribArray(3);
+        glVertexAttribPointer(3, 3, GL_FLOAT, GL_FALSE, sizeof(VertexPC),
+                              reinterpret_cast<void*>(offsetof(VertexPC, color)));
+        glBindVertexArray(0);
+        return;
+    }
 
     if (triCount_ == 0) return;
 
@@ -176,6 +213,12 @@ void MeshRenderer::drawPicker() const {
     glBindVertexArray(pickVao_.get());
     // pickVertices_ 每三角面 3 顶点
     glDrawArrays(GL_TRIANGLES, 0, static_cast<GLsizei>(triCount_ * 3));
+}
+
+void MeshRenderer::drawPoints() const {
+    if (!pointVao_ || pointCount_ == 0) return;
+    glBindVertexArray(pointVao_.get());
+    glDrawArrays(GL_POINTS, 0, static_cast<GLsizei>(pointCount_));
 }
 
 } // namespace prism

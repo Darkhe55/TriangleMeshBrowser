@@ -9,6 +9,8 @@ void Mesh::clear() noexcept {
     name.clear();
     vertices_.clear();
     indices_.clear();
+    pointColors.clear();
+    pointCloud = false;
     pickVertices_.clear();
     bboxMin = bboxMax = glm::vec3(0.f);
     triangleCount = 0;
@@ -86,6 +88,7 @@ void Mesh::computeNormals() {
 
 void Mesh::buildPickData() {
     pickVertices_.clear();
+    if (pointCloud) return;   // 点云无三角面,不参与拾取
     pickVertices_.reserve(static_cast<size_t>(triangleCount) * 3);
 
     if (indexed_) {

@@ -10,7 +10,7 @@ std::unique_ptr<Mesh> loadGLTF(const std::filesystem::path& filepath) {
     const std::vector<std::uint8_t> buf = readFileBinary(filepath);
     const std::string hint = (getExtension(filepath) == ".glb") ? "glb" : "gltf2";
     return importWithAssimp(buf, hint, filepath.parent_path(),
-                            getFileName(filepath), /*respectSceneUpAxis*/ false);
+                            getFileName(filepath), UpAxisPolicy::Convert);
 }
 
 } // namespace prism
