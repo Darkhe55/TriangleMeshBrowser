@@ -15,8 +15,8 @@ A lightweight, standalone 3D triangle-mesh browser built with C++17 + OpenGL 3.3
 
 ## Features / 功能
 
-- **Multi-format loading**: OBJ, STL (ASCII + Binary), PLY (ASCII + Binary Little/Big Endian), OFF / NOFF / COFF / CNOFF, PMX 2.0 / 2.1 (geometry + textures/materials/bones), FBX, glTF / GLB (via Assimp)
-- **多格式加载**：OBJ、STL（ASCII + 二进制）、PLY（ASCII + 二进制小端/大端）、OFF / NOFF / COFF / CNOFF、PMX 2.0 / 2.1（几何 + 纹理/材质/骨骼）、FBX、glTF / GLB（由 Assimp 解析）
+- **Multi-format loading**: OBJ, STL (ASCII + Binary), PLY (ASCII + Binary Little/Big Endian), OFF / NOFF / COFF / CNOFF, PMX 2.0 / 2.1, FBX, glTF / GLB, Collada (.dae), 3MF (via Assimp), LAS / LAZ point clouds (via laszip), E57 point clouds, USD / USDA / USDC / USDZ (via tinyusdz)
+- **多格式加载**：OBJ、STL（ASCII + 二进制）、PLY（ASCII + 二进制小端/大端）、OFF / NOFF / COFF / CNOFF、PMX 2.0 / 2.1、FBX、glTF / GLB、Collada（.dae）、3MF（由 Assimp 解析）、LAS / LAZ 点云（由 laszip）、E57 点云、USD / USDA / USDC / USDZ（由 tinyusdz 解析）
 - **Model export / format conversion**: Export the current mesh as OBJ, STL (Binary), PLY (ASCII / Binary Little Endian) or OFF
 - **模型导出/格式转换**：将当前网格导出为 OBJ、STL（二进制）、PLY（ASCII / 二进制小端）或 OFF
 - **Built-in geometry generators**: Cube, sphere, cylinder, torus, cone — generated at runtime, no external assets required
@@ -102,7 +102,10 @@ The following libraries are declared in `vcpkg.json` and fetched + built by vcpk
 | **GLM** | 1.0.3 | Header-only maths library (vectors, matrices) / 纯头文件数学库（向量、矩阵） | [MIT (Happy Bunny)](https://github.com/g-truc/glm/blob/master/copying.txt) |
 | **Dear ImGui** | 1.92.8 | Immediate-mode GUI (docking branch) / 即时模式 GUI（docking 分支） | [MIT](https://github.com/ocornut/imgui/blob/master/LICENSE.txt) |
 | **stb** | latest / 最新 | Public-domain single-file libraries (`stb_image_write`) / 公共领域单文件库 | [Public Domain / MIT](https://github.com/nothings/stb/blob/master/LICENSE) |
-| **Assimp** | 6.0.4 | FBX / glTF / GLB import / FBX / glTF / GLB 导入 | [BSD-3-Clause](https://github.com/assimp/assimp/blob/master/LICENSE) |
+| **Assimp** | 6.0.4 | FBX / glTF / GLB / Collada (.dae) / 3MF import / FBX / glTF / GLB / Collada / 3MF 导入 | [BSD-3-Clause](https://github.com/assimp/assimp/blob/master/LICENSE) |
+| **laszip** | (vcpkg) | LAS / LAZ point-cloud reading (auto-decompress) / LAS / LAZ 点云读取（自动解压） | [Apache-2.0](https://github.com/LASzip/LASzip/blob/master/LICENSE.txt) |
+| **pugixml** | (vcpkg) | XML parsing for E57 metadata / E57 元数据 XML 解析 | [MIT](https://github.com/zeux/pugixml/blob/master/LICENSE.md) |
+| **tinyusdz** | 1.0.0-rc3 | USD / USDA / USDC / USDZ reading (overlay port) / USD 系列格式读取（自建 overlay port） | [Apache-2.0](https://github.com/lighttransport/tinyusdz/blob/master/LICENSE) |
 
 You do **not** need to manually download or install any of these — vcpkg handles everything.
 
@@ -184,8 +187,17 @@ The output binary will be at `build\Release\PrismViewer.exe`.
 | `.pmx` | MikuMikuDance PMX | 2.0 / 2.1, geometry + textures + materials + bones / 几何 + 纹理 + 材质 + 骨骼 |
 | `.fbx` | Filmbox FBX | ASCII + Binary, via Assimp / 经 Assimp 解析 |
 | `.gltf` `.glb` | glTF 2.0 | JSON + GLB binary container, via Assimp / JSON + GLB 二进制容器，经 Assimp 解析 |
+| `.dae` | Collada | via Assimp; Y-up→Z-up auto-convert / 经 Assimp;Y-up→Z-up 自动转换 |
+| `.3mf` | 3D Manufacturing Format | via Assimp; +Z-up preserved / 经 Assimp;保持 +Z 朝上 |
+| `.las` `.laz` | ASPRS LAS / LAZ | Point cloud, via laszip (auto-decompress) / 点云，经 laszip（自动解压） |
+| `.e57` | ASTM E57 | Point cloud, lightweight built-in parser / 点云，内置轻量解析器 |
+| `.usd` `.usda` `.usdc` `.usdz` | Universal Scene Description | Via tinyusdz; renders triangles + points / 经 tinyusdz 解析 |
 
 Extensions are case-insensitive. / 扩展名不区分大小写。
+
+> **Point clouds** (`.las`/`.laz`/`.e57`): rendered as GL_POINTS with optional vertex
+> colors; adjust point size in the side panel. / **点云**（`.las`/`.laz`/`.e57`）：
+> 以 GL_POINTS 渲染并支持顶点色，可在侧栏调整点大小。
 
 ### Controls / 操作
 
@@ -238,6 +250,12 @@ TriangleMeshBrowser/
 │   │   ├── PMXLoader.{h,cpp}   # PMX 2.0/2.1 parser / PMX 解析器
 │   │   ├── FBXLoader.{h,cpp}   # FBX importer (Assimp) / FBX 导入器
 │   │   ├── GLTFLoader.{h,cpp}  # glTF/GLB importer (Assimp) / glTF/GLB 导入器
+│   │   ├── ColladaLoader.{h,cpp}# Collada (.dae) importer (Assimp) / Collada 导入器
+│   │   ├── ThreeMFLoader.{h,cpp}# 3MF importer (Assimp) / 3MF 导入器
+│   │   ├── LASLoader.{h,cpp}   # LAS/LAZ point cloud (laszip) / LAS/LAZ 点云
+│   │   ├── E57Loader.{h,cpp}   # E57 point cloud (lightweight parser) / E57 点云
+│   │   ├── USDLoader.{h,cpp}   # USD/USDA/USDC/USDZ (tinyusdz) / USD 系列载入
+│   │   ├── UsdLinkStubs.cpp    # tinyusdz link stubs / tinyusdz 链接桩
 │   │   ├── AssimpCommon.{h,cpp}# Shared Assimp scene flattening / Assimp 公共导入逻辑
 │   │   ├── MeshWriter.{h,cpp}  # Mesh exporter (OBJ/STL/PLY/OFF) / 网格导出器
 │   │   └── Procedural.{h,cpp}  # Runtime geometry generators / 运行时几何体生成器
@@ -298,6 +316,9 @@ This project links against the following open-source libraries. **None of their 
 | **Dear ImGui** | 1.92.8 | [MIT](https://opensource.org/licenses/MIT) | https://github.com/ocornut/imgui |
 | **stb** | latest / 最新 | [Public Domain](https://unlicense.org/) / [MIT](https://opensource.org/licenses/MIT) | https://github.com/nothings/stb |
 | **Assimp** | 6.0.4 | [BSD-3-Clause](https://opensource.org/licenses/BSD-3-Clause) | https://github.com/assimp/assimp |
+| **laszip** | vcpkg | [Apache-2.0](https://opensource.org/licenses/Apache-2.0) | https://github.com/LASzip/LASzip |
+| **pugixml** | vcpkg | [MIT](https://opensource.org/licenses/MIT) | https://github.com/zeux/pugixml |
+| **tinyusdz** | 1.0.0-rc3 | [Apache-2.0](https://opensource.org/licenses/Apache-2.0) | https://github.com/lighttransport/tinyusdz |
 
 #### Quick License Summaries / 许可证简要说明
 

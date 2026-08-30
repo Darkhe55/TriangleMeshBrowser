@@ -47,6 +47,37 @@ find_package(GLEW   CONFIG REQUIRED)
 find_package(glm    CONFIG REQUIRED)
 find_package(imgui  CONFIG REQUIRED)
 find_package(assimp CONFIG REQUIRED)
+# E57 用自研轻量解析器 (见 src/model/E57Loader.cpp), 不再依赖 libE57Format + Xerces-c;
+# XML 段解析复用 pugixml (assimp 3MF 导入器的传递依赖, 本就参与链接)
+find_library(PUGIXML_LIB
+    NAMES pugixml
+    PATHS ${VCPKG_INSTALLED_DIR}/x64-windows-static/lib
+    NO_DEFAULT_PATH
+    NO_CACHE
+)
+find_path(PUGIXML_INCLUDE_DIR
+    NAMES pugixml.hpp
+    PATHS ${VCPKG_INSTALLED_DIR}/x64-windows-static/include
+    NO_DEFAULT_PATH
+    NO_CACHE
+)
+if(NOT PUGIXML_LIB OR NOT PUGIXML_INCLUDE_DIR)
+    message(FATAL_ERROR "pugixml not found in vcpkg install tree")
+endif()
+
+# laszip 不带 CMake config, 直接定位静态库 (LAS/LAZ 点云)
+# laszip3.lib 含完整 C API + 流式读取 (laszip_open_reader_stream);
+# laszip_api3.lib 与其符号重复, 不能同时链接。
+find_library(LASZIP_LIB
+    NAMES laszip3
+    PATHS ${VCPKG_INSTALLED_DIR}/x64-windows-static/lib
+    NO_DEFAULT_PATH
+    NO_CACHE   # 安装根变化时重新定位, 不用旧缓存值
+)
+if(NOT LASZIP_LIB)
+    message(FATAL_ERROR "laszip static lib not found in vcpkg install tree")
+endif()
+message(STATUS "laszip lib: ${LASZIP_LIB}")
 
 # stb is header-only in vcpkg; no CMake config shipped.
 # Use its include directory directly.
@@ -54,11 +85,30 @@ find_path(Stb_INCLUDE_DIR
     NAMES stb_image_write.h
     PATHS ${VCPKG_INSTALLED_DIR}/x64-windows-static/include
     NO_DEFAULT_PATH
+    NO_CACHE
 )
 if(NOT Stb_INCLUDE_DIR)
     message(FATAL_ERROR "stb headers not found in vcpkg install tree")
 endif()
 message(STATUS "stb headers: ${Stb_INCLUDE_DIR}")
+
+# tinyusdz 为自建 overlay port (上游无 install 规则), 手工定位静态库与头文件 (USD/USDZ)
+find_library(TINYUSDZ_LIB
+    NAMES tinyusdz_static
+    PATHS ${VCPKG_INSTALLED_DIR}/x64-windows-static/lib
+    NO_DEFAULT_PATH
+    NO_CACHE
+)
+find_path(TINYUSDZ_INCLUDE_DIR
+    NAMES tinyusdz.hh
+    PATHS ${VCPKG_INSTALLED_DIR}/x64-windows-static/include
+    NO_DEFAULT_PATH
+    NO_CACHE
+)
+if(NOT TINYUSDZ_LIB OR NOT TINYUSDZ_INCLUDE_DIR)
+    message(FATAL_ERROR "tinyusdz not found in vcpkg install tree")
+endif()
+message(STATUS "tinyusdz lib: ${TINYUSDZ_LIB}")
 
 find_package(OpenGL REQUIRED)
 
@@ -102,8 +152,19 @@ add_executable(PrismViewer
     src/model/FBXLoader.cpp
     src/model/GLTFLoader.h
     src/model/GLTFLoader.cpp
+    src/model/ColladaLoader.h
+    src/model/ColladaLoader.cpp
+    src/model/ThreeMFLoader.h
+    src/model/ThreeMFLoader.cpp
     src/model/PMXLoader.h
     src/model/PMXLoader.cpp
+    src/model/LASLoader.h
+    src/model/LASLoader.cpp
+    src/model/E57Loader.h
+    src/model/E57Loader.cpp
+    src/model/USDLoader.h
+    src/model/USDLoader.cpp
+    src/model/UsdLinkStubs.cpp
     src/model/Procedural.h
     src/model/Procedural.cpp
 
@@ -128,6 +189,8 @@ target_include_directories(PrismViewer PRIVATE
     src
     ${CMAKE_CURRENT_BINARY_DIR}/shaders
     ${Stb_INCLUDE_DIR}
+    ${PUGIXML_INCLUDE_DIR}
+    ${TINYUSDZ_INCLUDE_DIR}
 )
 
 # 生成 shader 资源 (用 CMake 编译为字节数组)
@@ -166,6 +229,9 @@ target_link_libraries(PrismViewer PRIVATE
     glm::glm
     imgui::imgui
     assimp::assimp
+    ${PUGIXML_LIB}
+    ${LASZIP_LIB}
+    ${TINYUSDZ_LIB}
     OpenGL::GL
     opengl32
     gdi32

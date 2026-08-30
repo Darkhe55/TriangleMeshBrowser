@@ -7,6 +7,8 @@
     "glfw3",
     "glew",
     "glm",
+    "laszip",
+    "pugixml",
     {
       "name": "imgui",
       "features": [
@@ -15,6 +17,7 @@
         "docking-experimental"
       ]
     },
-    "stb"
+    "stb",
+    "tinyusdz"
   ]
 }

@@ -137,6 +137,7 @@ constexpr Entry kEntries[] = {
     {"view.mode.solid",        "实体",                      "Solid"},
     {"view.mode.wire",         "线框",                      "Wireframe"},
     {"view.mode.solidwire",    "实体+线框",                 "Solid + wireframe"},
+    {"view.pointSize",         "点大小 (点云)",              "Point size (point cloud)"},
 
     // ---- 视口标签 ----
     {"viewport.main",          "主视口",                    "Main viewport"},
