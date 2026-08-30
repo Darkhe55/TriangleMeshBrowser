@@ -15,8 +15,8 @@ A lightweight, standalone 3D triangle-mesh browser built with C++17 + OpenGL 3.3
 
 ## Features / 功能
 
-- **Multi-format loading**: OBJ, STL (ASCII + Binary), PLY (ASCII + Binary Little/Big Endian), OFF / NOFF / COFF / CNOFF, PMX 2.0 / 2.1, FBX, glTF / GLB, Collada (.dae), 3MF (via Assimp), LAS / LAZ point clouds (via laszip), E57 point clouds, USD / USDA / USDC / USDZ (via tinyusdz)
-- **多格式加载**：OBJ、STL（ASCII + 二进制）、PLY（ASCII + 二进制小端/大端）、OFF / NOFF / COFF / CNOFF、PMX 2.0 / 2.1、FBX、glTF / GLB、Collada（.dae）、3MF（由 Assimp 解析）、LAS / LAZ 点云（由 laszip）、E57 点云、USD / USDA / USDC / USDZ（由 tinyusdz 解析）
+- **Multi-format loading**: OBJ, STL (ASCII + Binary), PLY (ASCII + Binary Little/Big Endian), OFF / NOFF / COFF / CNOFF, PMX 2.0 / 2.1, FBX, glTF / GLB, Collada (.dae), 3MF (via Assimp), LAS / LAZ point clouds (via laszip), E57 point clouds
+- **多格式加载**：OBJ、STL（ASCII + 二进制）、PLY（ASCII + 二进制小端/大端）、OFF / NOFF / COFF / CNOFF、PMX 2.0 / 2.1、FBX、glTF / GLB、Collada（.dae）、3MF（由 Assimp 解析）、LAS / LAZ 点云（由 laszip）、E57 点云
 - **Model export / format conversion**: Export the current mesh as OBJ, STL (Binary), PLY (ASCII / Binary Little Endian) or OFF
 - **模型导出/格式转换**：将当前网格导出为 OBJ、STL（二进制）、PLY（ASCII / 二进制小端）或 OFF
 - **Built-in geometry generators**: Cube, sphere, cylinder, torus, cone — generated at runtime, no external assets required
@@ -105,7 +105,6 @@ The following libraries are declared in `vcpkg.json` and fetched + built by vcpk
 | **Assimp** | 6.0.4 | FBX / glTF / GLB / Collada (.dae) / 3MF import / FBX / glTF / GLB / Collada / 3MF 导入 | [BSD-3-Clause](https://github.com/assimp/assimp/blob/master/LICENSE) |
 | **laszip** | (vcpkg) | LAS / LAZ point-cloud reading (auto-decompress) / LAS / LAZ 点云读取（自动解压） | [Apache-2.0](https://github.com/LASzip/LASzip/blob/master/LICENSE.txt) |
 | **pugixml** | (vcpkg) | XML parsing for E57 metadata / E57 元数据 XML 解析 | [MIT](https://github.com/zeux/pugixml/blob/master/LICENSE.md) |
-| **tinyusdz** | 1.0.0-rc3 | USD / USDA / USDC / USDZ reading (overlay port) / USD 系列格式读取（自建 overlay port） | [Apache-2.0](https://github.com/lighttransport/tinyusdz/blob/master/LICENSE) |
 
 You do **not** need to manually download or install any of these — vcpkg handles everything.
 
@@ -191,7 +190,11 @@ The output binary will be at `build\Release\PrismViewer.exe`.
 | `.3mf` | 3D Manufacturing Format | via Assimp; +Z-up preserved / 经 Assimp;保持 +Z 朝上 |
 | `.las` `.laz` | ASPRS LAS / LAZ | Point cloud, via laszip (auto-decompress) / 点云，经 laszip（自动解压） |
 | `.e57` | ASTM E57 | Point cloud, lightweight built-in parser / 点云，内置轻量解析器 |
-| `.usd` `.usda` `.usdc` `.usdz` | Universal Scene Description | Via tinyusdz; renders triangles + points / 经 tinyusdz 解析 |
+| `.usd` `.usda` `.usdc` `.usdz` | Universal Scene Description | Planned — see `Future Work` / 计划中 — 见「未来计划」 |
+
+> **Future Work (USD)**: USD support (via tinyusdz) was prototyped but pulled to keep
+> the executable under 5 MB (tinyusdz added ~10 MB). It is planned to be restored
+> once a leaner USD import path is available. / **未来计划（USD）**：USD 支持（借由 tinyusdz）曾原型实现，但为使可执行文件保持在 5MB 以下而被移除（tinyusdz 增大约 10MB）。待具备更精简的 USD 导入路径后计划恢复。
 
 Extensions are case-insensitive. / 扩展名不区分大小写。
 
@@ -254,8 +257,6 @@ TriangleMeshBrowser/
 │   │   ├── ThreeMFLoader.{h,cpp}# 3MF importer (Assimp) / 3MF 导入器
 │   │   ├── LASLoader.{h,cpp}   # LAS/LAZ point cloud (laszip) / LAS/LAZ 点云
 │   │   ├── E57Loader.{h,cpp}   # E57 point cloud (lightweight parser) / E57 点云
-│   │   ├── USDLoader.{h,cpp}   # USD/USDA/USDC/USDZ (tinyusdz) / USD 系列载入
-│   │   ├── UsdLinkStubs.cpp    # tinyusdz link stubs / tinyusdz 链接桩
 │   │   ├── AssimpCommon.{h,cpp}# Shared Assimp scene flattening / Assimp 公共导入逻辑
 │   │   ├── MeshWriter.{h,cpp}  # Mesh exporter (OBJ/STL/PLY/OFF) / 网格导出器
 │   │   └── Procedural.{h,cpp}  # Runtime geometry generators / 运行时几何体生成器
@@ -318,7 +319,6 @@ This project links against the following open-source libraries. **None of their 
 | **Assimp** | 6.0.4 | [BSD-3-Clause](https://opensource.org/licenses/BSD-3-Clause) | https://github.com/assimp/assimp |
 | **laszip** | vcpkg | [Apache-2.0](https://opensource.org/licenses/Apache-2.0) | https://github.com/LASzip/LASzip |
 | **pugixml** | vcpkg | [MIT](https://opensource.org/licenses/MIT) | https://github.com/zeux/pugixml |
-| **tinyusdz** | 1.0.0-rc3 | [Apache-2.0](https://opensource.org/licenses/Apache-2.0) | https://github.com/lighttransport/tinyusdz |
 
 #### Quick License Summaries / 许可证简要说明
 

@@ -1,9 +1,8 @@
 // src/utils/StbWrite.cpp
 #include "StbWrite.h"
-// STB_IMAGE_WRITE_STATIC: stbi_write_* 编译为文件局部符号 (static),
-// 避免与 tinyusdz 静态库 internal 的 image-writer.cc.obj 导出同名
-// stbi_write_* (extern) 冲突 (LNK2005)。writePNG 在同一翻译单元仍可调用。
-#define STB_IMAGE_WRITE_STATIC
+// stbi_write_* 在此提供唯一实现来源 (全局 extern), 供本项目及
+// AssimpCommon.cpp(嵌入式贴图保存) 链接。早期因 tinyusdz 库内也导出
+// 同名符号需用 STB_IMAGE_WRITE_STATIC 规避; tinyusdz/USD 已移除后恢复。
 #define STB_IMAGE_WRITE_IMPLEMENTATION
 #include "stb_image_write.h"
 #include <algorithm>

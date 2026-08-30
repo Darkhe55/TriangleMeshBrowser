@@ -365,7 +365,7 @@ void Viewer::handleUiRequest() {
         ofn.hwndOwner = nullptr;
         ofn.lpstrFile = szFile;
         ofn.nMaxFile = sizeof(szFile);
-        ofn.lpstrFilter = "3D Models\0*.obj;*.stl;*.ply;*.off;*.pmx;*.fbx;*.gltf;*.glb;*.dae;*.3mf;*.usd;*.usda;*.usdc;*.usdz\0"
+        ofn.lpstrFilter = "3D Models\0*.obj;*.stl;*.ply;*.off;*.pmx;*.fbx;*.gltf;*.glb;*.dae;*.3mf\0"
                           "Point Clouds\0*.las;*.laz;*.e57\0All\0*.*\0";
         ofn.nFilterIndex = 1;
         ofn.Flags = OFN_PATHMUSTEXIST | OFN_FILEMUSTEXIST;

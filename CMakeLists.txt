@@ -92,23 +92,6 @@ if(NOT Stb_INCLUDE_DIR)
 endif()
 message(STATUS "stb headers: ${Stb_INCLUDE_DIR}")
 
-# tinyusdz 为自建 overlay port (上游无 install 规则), 手工定位静态库与头文件 (USD/USDZ)
-find_library(TINYUSDZ_LIB
-    NAMES tinyusdz_static
-    PATHS ${VCPKG_INSTALLED_DIR}/x64-windows-static/lib
-    NO_DEFAULT_PATH
-    NO_CACHE
-)
-find_path(TINYUSDZ_INCLUDE_DIR
-    NAMES tinyusdz.hh
-    PATHS ${VCPKG_INSTALLED_DIR}/x64-windows-static/include
-    NO_DEFAULT_PATH
-    NO_CACHE
-)
-if(NOT TINYUSDZ_LIB OR NOT TINYUSDZ_INCLUDE_DIR)
-    message(FATAL_ERROR "tinyusdz not found in vcpkg install tree")
-endif()
-message(STATUS "tinyusdz lib: ${TINYUSDZ_LIB}")
 
 find_package(OpenGL REQUIRED)
 
@@ -162,9 +145,6 @@ add_executable(PrismViewer
     src/model/LASLoader.cpp
     src/model/E57Loader.h
     src/model/E57Loader.cpp
-    src/model/USDLoader.h
-    src/model/USDLoader.cpp
-    src/model/UsdLinkStubs.cpp
     src/model/Procedural.h
     src/model/Procedural.cpp
 
@@ -190,7 +170,6 @@ target_include_directories(PrismViewer PRIVATE
     ${CMAKE_CURRENT_BINARY_DIR}/shaders
     ${Stb_INCLUDE_DIR}
     ${PUGIXML_INCLUDE_DIR}
-    ${TINYUSDZ_INCLUDE_DIR}
 )
 
 # 生成 shader 资源 (用 CMake 编译为字节数组)
@@ -231,7 +210,6 @@ target_link_libraries(PrismViewer PRIVATE
     assimp::assimp
     ${PUGIXML_LIB}
     ${LASZIP_LIB}
-    ${TINYUSDZ_LIB}
     OpenGL::GL
     opengl32
     gdi32
