@@ -11,7 +11,6 @@
 #include "ThreeMFLoader.h"
 #include "LASLoader.h"
 #include "E57Loader.h"
-#include "USDLoader.h"
 #include "../utils/FileUtils.h"
 #include <stdexcept>
 
@@ -21,8 +20,7 @@ const std::vector<std::string>& ModelLoader::supportedExtensions() {
     static const std::vector<std::string> exts = {
         ".obj", ".stl", ".ply", ".off", ".pmx",
         ".fbx", ".gltf", ".glb", ".dae", ".3mf",
-        ".las", ".laz", ".e57",
-        ".usd", ".usda", ".usdc", ".usdz"};
+        ".las", ".laz", ".e57"};
     return exts;
 }
 
@@ -39,9 +37,8 @@ std::unique_ptr<Mesh> ModelLoader::load(const std::filesystem::path& filepath) {
     if (ext == ".3mf") return load3MF(filepath);
     if (ext == ".las" || ext == ".laz") return loadLAS(filepath);
     if (ext == ".e57") return loadE57(filepath);
-    if (ext == ".usd" || ext == ".usda" || ext == ".usdc" || ext == ".usdz") return loadUSD(filepath);
     throw std::runtime_error("Unsupported model format: " + ext +
-                             " (supported: .obj .stl .ply .off .pmx .fbx .gltf .glb .dae .3mf .las .laz .e57 .usd .usda .usdc .usdz)");
+                             " (supported: .obj .stl .ply .off .pmx .fbx .gltf .glb .dae .3mf .las .laz .e57)");
 }
 
 } // namespace prism
