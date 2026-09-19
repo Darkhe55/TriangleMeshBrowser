@@ -15,8 +15,8 @@ A lightweight, standalone 3D triangle-mesh browser built with C++17 + OpenGL 3.3
 
 ## Features / 功能
 
-- **Multi-format loading**: OBJ, STL (ASCII + Binary), PLY (ASCII + Binary Little/Big Endian), OFF / NOFF / COFF / CNOFF, PMX 2.0 / 2.1, FBX, glTF / GLB, Collada (.dae), 3MF (via Assimp), LAS / LAZ point clouds (via laszip), E57 point clouds
-- **多格式加载**：OBJ、STL（ASCII + 二进制）、PLY（ASCII + 二进制小端/大端）、OFF / NOFF / COFF / CNOFF、PMX 2.0 / 2.1、FBX、glTF / GLB、Collada（.dae）、3MF（由 Assimp 解析）、LAS / LAZ 点云（由 laszip）、E57 点云
+- **Multi-format loading — 13 extensions**: OBJ, STL (ASCII + Binary), PLY (ASCII + Binary Little/Big Endian), OFF / NOFF / COFF / CNOFF, PMX 2.0 / 2.1 (geometry + textures + materials + bones), FBX, glTF / GLB, Collada (.dae), 3MF (via Assimp), LAS / LAZ point clouds (via laszip), E57 point clouds
+- **多格式加载 — 13 种扩展名**：OBJ、STL（ASCII + 二进制）、PLY（ASCII + 二进制小端/大端）、OFF / NOFF / COFF / CNOFF、PMX 2.0 / 2.1（几何 + 纹理 + 材质 + 骨骼）、FBX、glTF / GLB、Collada（.dae）、3MF（由 Assimp 解析）、LAS / LAZ 点云（由 laszip）、E57 点云
 - **Model export / format conversion**: Export the current mesh as OBJ, STL (Binary), PLY (ASCII / Binary Little Endian) or OFF
 - **模型导出/格式转换**：将当前网格导出为 OBJ、STL（二进制）、PLY（ASCII / 二进制小端）或 OFF
 - **Built-in geometry generators**: Cube, sphere, cylinder, torus, cone — generated at runtime, no external assets required
@@ -54,15 +54,39 @@ A lightweight, standalone 3D triangle-mesh browser built with C++17 + OpenGL 3.3
 
 ---
 
+## Platforms / 平台支持
+
+| Platform / 平台 | Status / 状态 | Notes / 说明 |
+|-----------------|--------------|-------------|
+| **Windows (x64)** | ✅ Released / 已发布 | Single-file `PrismViewer.exe`, fully static, ~3.5 MB, no installer / 单文件、全静态链接、约 3.5 MB、免安装 |
+| **HarmonyOS PC / 鸿蒙 PC** | 🚧 **In development / 开发中** | Native port — ArkTS shell + `XComponent` + **OpenGL ES 3.0**, reusing the same C++ core / 原生移植：ArkTS 壳 + `XComponent` + **OpenGL ES 3.0** 渲染层，复用同一套 C++ 内核 |
+
+> **HarmonyOS port / 鸿蒙移植**：工程骨架、EGL/GLES3 渲染线程、输入适配（触摸/鼠标/按键/滚轮）、
+> 模型与渲染内核、ImGui 控制面板（GLES3 后端 + 中文字体）均已打通并**构建成功**；
+> 正在补齐 Assimp（FBX/glTF/DAE/3MF）与 laszip（LAS/LAZ）的交叉编译，随后接入发布签名。
+> 源码位于 [`harmony/`](harmony/)，构建与上架说明见 [`harmony/README.md`](harmony/README.md)。
+>
+> **HarmonyOS port / 鸿蒙移植**：scaffolding, the EGL/GLES3 render thread, input adaptation
+> (touch / mouse / key / wheel), the model + renderer core and the ImGui panel (GLES3 backend
+> with CJK font) are all working and **build successfully**. Assimp (FBX/glTF/DAE/3MF) and
+> laszip (LAS/LAZ) cross-compilation is in progress, followed by release signing.
+> Sources live in [`harmony/`](harmony/); build & publishing guide in [`harmony/README.md`](harmony/README.md).
+
+---
+
 ## Quick Start (Pre-built Release) / 快速开始（预编译版本）
 
+> *Windows build available now; the HarmonyOS PC build is in development — see [Platforms](#platforms--平台支持) above.*
+>
+> *Windows 版本已发布；鸿蒙 PC 版本正在开发中 — 见上方[平台支持](#platforms--平台支持)。*
+
 1. Go to the [Releases](../../releases) page.
-2. Download `TriangleMeshBrowser-v0.4.1.zip` for the latest build.
+2. Download `TriangleMeshBrowser-v0.5.0.zip` for the latest build.
 3. Extract the zip and run `PrismViewer.exe`.
 
 --
 1. 前往 [Releases](../../releases) 页面。
-2. 下载最新版本的 `TriangleMeshBrowser-v0.4.1.zip`。
+2. 下载最新版本的 `TriangleMeshBrowser-v0.5.0.zip`。
 3. 解压并运行 `PrismViewer.exe`。
 
 No installer, no runtime — just run the `.exe`.
@@ -230,6 +254,11 @@ TriangleMeshBrowser/
 ├── README.md
 ├── LICENSE                     # MIT License / MIT 许可证
 ├── .gitignore
+├── harmony/                    # HarmonyOS PC port — in development / 鸿蒙 PC 移植（开发中）
+│   ├── AppScope/               # App-level config (bundleName / version / icons) / 应用级配置
+│   ├── entry/src/main/ets/     # ArkTS UIAbility + XComponent / ArkTS 壳
+│   ├── entry/src/main/cpp/     # Native: NAPI + EGL/GLES3 render thread + core / Native 渲染层
+│   └── tools/                  # build_ascii.py / build_deps.py / gen_icons.py
 ├── src/
 │   ├── main.cpp                # Entry point / 入口
 │   ├── app/

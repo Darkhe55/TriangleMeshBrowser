@@ -1,12 +1,32 @@
 // browser/harmony/entry/src/main/cpp/platform/PlatformViewer.cpp
+// 鸿蒙渲染宿主: 用内核 (Procedural / MeshRenderer / Shader / Panel) 渲染 + UI。
 #include "PlatformViewer.h"
 #include "InputState.h"
+
+// PRISM_SRC 已在 target_include_directories 中, 故用相对源码根的路径
+#include "model/Mesh.h"
+#include "model/Procedural.h"
+#include "renderer/MeshRenderer.h"
+#include "renderer/Shader.h"
+
+#ifdef PRISM_HAVE_IMGUI
+#include "ui/Panel.h"
+#include <imgui.h>
+#include "imgui_impl_opengl3.h"
+#endif
 
 #include <GLES3/gl3.h>
 #include <hilog/log.h>
 
+#include <glm/glm.hpp>
+#include <glm/gtc/matrix_transform.hpp>
+#include <glm/gtc/matrix_inverse.hpp>
+
 #include <chrono>
 #include <cmath>
+#include <exception>
+#include <memory>
+#include <string>
 
 #undef LOG_TAG
 #define LOG_TAG "PrismViewer"
@@ -15,43 +35,7 @@
 
 namespace prism {
 
-namespace {
-
-const char* kVertSrc = R"(#version 300 es
-layout(location = 0) in vec3 aPos;
-layout(location = 1) in vec3 aColor;
-uniform mat4 uMvp;
-out vec3 vColor;
-void main() {
-    vColor = aColor;
-    gl_Position = uMvp * vec4(aPos, 1.0);
-}
-)";
-
-const char* kFragSrc = R"(#version 300 es
-precision mediump float;
-in vec3 vColor;
-out vec4 FragColor;
-void main() { FragColor = vec4(vColor, 1.0); }
-)";
-
-GLuint compile(GLenum type, const char* src) {
-    GLuint s = glCreateShader(type);
-    glShaderSource(s, 1, &src, nullptr);
-    glCompileShader(s);
-    GLint ok = 0;
-    glGetShaderiv(s, GL_COMPILE_STATUS, &ok);
-    if (!ok) {
-        char log[512] = {0};
-        glGetShaderInfoLog(s, sizeof(log) - 1, nullptr, log);
-        LOGE("shader compile failed: %{public}s", log);
-        glDeleteShader(s);
-        return 0;
-    }
-    return s;
-}
-
-} // namespace
+PlatformViewer::PlatformViewer() = default;
 
 PlatformViewer::~PlatformViewer() {
     shutdown();
@@ -61,80 +45,176 @@ bool PlatformViewer::init() {
     glEnable(GL_DEPTH_TEST);
     glEnable(GL_CULL_FACE);
     glCullFace(GL_BACK);
-    glFrontFace(GL_CCW);
+    glFrontFace(GL_CCW);          // GLES 默认逆时针为正面
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
-    GLuint vs = compile(GL_VERTEX_SHADER, kVertSrc);
-    GLuint fs = compile(GL_FRAGMENT_SHADER, kFragSrc);
-    if (vs == 0 || fs == 0) return false;
+    try {
+        // Shader 在 PRISM_OHOS 下按文件名从嵌入表取源码并转为 GLSL ES 3.00
+        shader_ = std::make_unique<Shader>("mesh.vert", "mesh.frag");
 
-    program_ = glCreateProgram();
-    glAttachShader(program_, vs);
-    glAttachShader(program_, fs);
-    glLinkProgram(program_);
-    GLint ok = 0;
-    glGetProgramiv(program_, GL_LINK_STATUS, &ok);
-    if (!ok) {
-        char log[512] = {0};
-        glGetProgramInfoLog(program_, sizeof(log) - 1, nullptr, log);
-        LOGE("program link failed: %{public}s", log);
+        // 程序化几何: 无外部资源依赖, 适合验证渲染链路
+        mesh_ = procedural::torus(1.0f, 0.38f, 64, 24);
+
+        renderer_ = std::make_unique<MeshRenderer>();
+        renderer_->upload(*mesh_);
+    } catch (const std::exception& e) {
+        LOGE("PlatformViewer init failed: %{public}s", e.what());
         return false;
     }
-    glDeleteShader(vs);
-    glDeleteShader(fs);
-    uMvpLoc_ = glGetUniformLocation(program_, "uMvp");
 
-    const float verts[] = {
-         0.0f,  0.6f, 0.0f,  1.0f, 0.35f, 0.35f,
-        -0.5f, -0.4f, 0.0f,  0.35f, 1.0f, 0.35f,
-         0.5f, -0.4f, 0.0f,  0.35f, 0.35f, 1.0f,
-    };
-    glGenVertexArrays(1, &vao_);
-    glGenBuffers(1, &vbo_);
-    glBindVertexArray(vao_);
-    glBindBuffer(GL_ARRAY_BUFFER, vbo_);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(verts), verts, GL_STATIC_DRAW);
-    glEnableVertexAttribArray(0);
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), reinterpret_cast<void*>(0));
-    glEnableVertexAttribArray(1);
-    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float),
-                          reinterpret_cast<void*>(3 * sizeof(float)));
-    glBindVertexArray(0);
+#ifdef PRISM_HAVE_IMGUI
+    initImGui();
+#endif
 
+    spin_ = 0.f;
     lastTime_ = 0.f;
     ready_ = true;
-    LOGI("PlatformViewer init ok, GL_VERSION=%{public}s",
+    LOGI("PlatformViewer init ok: tris=%{public}u GL=%{public}s",
+         renderer_->triangleCount(),
          reinterpret_cast<const char*>(glGetString(GL_VERSION)));
     return true;
 }
 
-void PlatformViewer::applyInput(InputState& input, float /*dt*/) {
-    // 首版: 消费事件 (后续接入 OrbitCamera / ImGui)
-    input.takePointer();
+#ifdef PRISM_HAVE_IMGUI
+void PlatformViewer::initImGui() {
+    IMGUI_CHECKVERSION();
+    ImGui::CreateContext();
+    ImGuiIO& io = ImGui::GetIO();
+    io.IniFilename = nullptr;        // 不写 imgui.ini (沙箱内无需持久化)
+    io.LogFilename = nullptr;
+    ImGui::StyleColorsDark();
+
+    // 中文字体: 尝试加载鸿蒙系统字体 (失败则回退默认拉丁字体)
+    const char* kFonts[] = {
+        "/system/fonts/HarmonyOS_Sans_SC_Regular.ttf",
+        "/system/fonts/HarmonyOS_Sans_SC.ttf",
+        "/system/fonts/NotoSansCJK-Regular.ttc",
+        "/system/fonts/DroidSansFallbackFull.ttf",
+        "/system/fonts/DroidSansFallback.ttf",
+    };
+    for (const char* f : kFonts) {
+        if (io.Fonts->AddFontFromFileTTF(f, 18.0f, nullptr,
+                                         io.Fonts->GetGlyphRangesChineseFull()) != nullptr) {
+            LOGI("ImGui CJK font loaded: %{public}s", f);
+            break;
+        }
+    }
+
+    if (!ImGui_ImplOpenGL3_Init("#version 300 es")) {
+        LOGE("ImGui_ImplOpenGL3_Init failed");
+        ImGui::DestroyContext();
+        return;
+    }
+
+    panel_     = std::make_unique<Panel>();
+    uiState_   = std::make_unique<ViewState>();
+    uiRequest_ = std::make_unique<UiRequest>();
+    imguiReady_ = true;
+    LOGI("ImGui ready (GLES3 backend)");
+}
+
+void PlatformViewer::feedImGui(const std::vector<PointerEvent>& pointers, float scroll) {
+    ImGuiIO& io = ImGui::GetIO();
+    for (const PointerEvent& e : pointers) {
+        io.AddMousePosEvent(e.x, e.y);
+        const bool down = (e.action == PointerAction::Down);
+        const bool up   = (e.action == PointerAction::Up);
+        // 左键=0, 右键=1 (鸿蒙按钮位: LEFT 0x01 / RIGHT 0x02)
+        if (down || up) {
+            if (e.button & 0x02) io.AddMouseButtonEvent(1, down);
+            else                 io.AddMouseButtonEvent(0, down);
+        }
+    }
+    if (scroll != 0.f) io.AddMouseWheelEvent(0.f, scroll);
+}
+
+void PlatformViewer::drawUI() {
+    ImGui_ImplOpenGL3_NewFrame();
+    ImGui::NewFrame();
+
+    const std::string name = mesh_ ? mesh_->name : std::string();
+    const std::uint32_t vc = mesh_ ? static_cast<std::uint32_t>(mesh_->vertices_.size()) : 0u;
+    const std::uint32_t tc = mesh_ ? mesh_->triangleCount : 0u;
+    const glm::vec3 bmin = mesh_ ? mesh_->bboxMin : glm::vec3(0.f);
+    const glm::vec3 bmax = mesh_ ? mesh_->bboxMax : glm::vec3(0.f);
+    const bool materials = mesh_ && mesh_->hasPmxMaterials();
+
+    panel_->draw(*uiState_, *uiRequest_, name, vc, tc, bmin, bmax, materials, false);
+
+    ImGui::Render();
+}
+#endif // PRISM_HAVE_IMGUI
+
+void PlatformViewer::applyInput(InputState& input) {
+    // 一次性取走事件, 再分发给 UI / 相机
+    const std::vector<PointerEvent> pointers = input.takePointer();
     input.takeKeys();
-    input.takeScroll();
+    const float scroll = input.takeScroll();
+
+#ifdef PRISM_HAVE_IMGUI
+    if (imguiReady_) {
+        feedImGui(pointers, scroll);
+        // 相机操作由 UI 面板/后续 OrbitCamera 接管; 此处保留无 UI 时的备用路径
+        return;
+    }
+#endif
+    // 无 UI: 左键拖拽 → 轨道旋转
+    for (const PointerEvent& e : pointers) {
+        if (e.action == PointerAction::Move && e.button == 0x01) {
+            yaw_   -= e.x * 0.01f;
+            pitch_ += e.y * 0.01f;
+            if (pitch_ >  1.45f) pitch_ =  1.45f;
+            if (pitch_ < -1.45f) pitch_ = -1.45f;
+        }
+    }
+    if (scroll != 0.f) {
+        dist_ *= (scroll > 0.f) ? 0.92f : 1.08f;
+        if (dist_ < 1.2f)  dist_ = 1.2f;
+        if (dist_ > 30.0f) dist_ = 30.0f;
+    }
 }
 
 void PlatformViewer::renderScene(int w, int h) {
-    glViewport(0, 0, w, h);
-    glClearColor(0.12f, 0.12f, 0.14f, 1.0f);
-    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
     const float aspect = (h > 0) ? static_cast<float>(w) / static_cast<float>(h) : 1.f;
-    const float c = std::cos(angle_);
-    const float s = std::sin(angle_);
-    const float sx = (aspect < 1.f) ? aspect : 1.f;
-    const float sy = (aspect > 1.f) ? 1.f / aspect : 1.f;
-    const float m[16] = {
-        c * sx,  s * sy, 0.f, 0.f,
-       -s * sx,  c * sy, 0.f, 0.f,
-        0.f,     0.f,    1.f, 0.f,
-        0.f,     0.f,    0.f, 1.f,
-    };
-    glUseProgram(program_);
-    glUniformMatrix4fv(uMvpLoc_, 1, GL_FALSE, m);
-    glBindVertexArray(vao_);
-    glDrawArrays(GL_TRIANGLES, 0, 3);
-    glBindVertexArray(0);
+
+    // 轨道相机
+    const float cp = std::cos(pitch_);
+    const float sp = std::sin(pitch_);
+    const glm::vec3 eye(dist_ * cp * std::sin(yaw_),
+                        dist_ * sp,
+                        dist_ * cp * std::cos(yaw_));
+    const glm::mat4 view  = glm::lookAt(eye, glm::vec3(0.f), glm::vec3(0.f, 1.f, 0.f));
+    const glm::mat4 proj  = glm::perspective(glm::radians(45.f), aspect, 0.1f, 200.f);
+    const glm::mat4 model = glm::rotate(glm::mat4(1.f), spin_, glm::vec3(0.f, 1.f, 0.f));
+    const glm::mat3 nmat  = glm::transpose(glm::inverse(glm::mat3(model)));
+
+    shader_->bind();
+    shader_->setMat4("uModel", model);
+    shader_->setMat4("uView", view);
+    shader_->setMat4("uProjection", proj);
+    shader_->setMat3("uNormalMatrix", nmat);
+
+    // mesh.frag 的光照 / 材质 / 雾参数
+    shader_->setVec3 ("uLightDir",      glm::normalize(glm::vec3(-0.4f, -0.75f, -0.5f)));
+    shader_->setVec3 ("uLightColor",    glm::vec3(1.00f, 0.98f, 0.95f));
+    shader_->setVec3 ("uViewPos",       eye);
+    shader_->setVec3 ("uBaseColor",     glm::vec3(0.62f, 0.68f, 0.78f));
+    shader_->setFloat("uAmbient",       0.28f);
+    shader_->setVec3 ("uFillColor",     glm::vec3(0.12f, 0.14f, 0.20f));
+    shader_->setFloat("uFillStrength",  0.55f);
+    shader_->setVec3 ("uFogColor",      glm::vec3(0.12f, 0.12f, 0.14f));
+    shader_->setFloat("uFogNear",       6.0f);
+    shader_->setFloat("uFogFar",        40.0f);
+    shader_->setFloat("uSpecStrength",  0.35f);
+    shader_->setFloat("uAlpha",         1.0f);
+    shader_->setInt  ("uColorOverride", 0);
+    shader_->setInt  ("uUseTexture",    0);
+    shader_->setInt  ("uUseToon",       0);
+    shader_->setInt  ("uUseSphere",     0);
+    shader_->setInt  ("uSphereMode",    0);
+
+    renderer_->drawSolid();
 }
 
 void PlatformViewer::frame(int w, int h, InputState& input) {
@@ -146,15 +226,38 @@ void PlatformViewer::frame(int w, int h, InputState& input) {
     if (dt > 0.1f) dt = 0.1f;
     lastTime_ = now;
 
-    applyInput(input, dt);
-    angle_ += dt * 0.8f;
+    applyInput(input);
+    spin_ += dt * 0.6f;
+
+    glViewport(0, 0, w, h);
+    glClearColor(0.12f, 0.12f, 0.14f, 1.f);
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
     renderScene(w, h);
+
+#ifdef PRISM_HAVE_IMGUI
+    if (imguiReady_) {
+        ImGui::GetIO().DisplaySize = ImVec2(static_cast<float>(w), static_cast<float>(h));
+        drawUI();
+        ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
+    }
+#endif
 }
 
 void PlatformViewer::shutdown() {
-    if (vao_)     { glDeleteVertexArrays(1, &vao_); vao_ = 0; }
-    if (vbo_)     { glDeleteBuffers(1, &vbo_); vbo_ = 0; }
-    if (program_) { glDeleteProgram(program_); program_ = 0; }
+#ifdef PRISM_HAVE_IMGUI
+    if (imguiReady_) {
+        ImGui_ImplOpenGL3_Shutdown();
+        ImGui::DestroyContext();
+        imguiReady_ = false;
+    }
+    panel_.reset();
+    uiState_.reset();
+    uiRequest_.reset();
+#endif
+    renderer_.reset();
+    mesh_.reset();
+    shader_.reset();
     ready_ = false;
 }
 

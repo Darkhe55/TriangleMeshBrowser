@@ -44,6 +44,18 @@ IGNORE = shutil.ignore_patterns(
     "build", ".cxx", "oh_modules", "node_modules", ".git", "*.log", "*.hap",
 )
 
+# header-only 第三方依赖 (glm / stb) 的搜索位置, 按序取第一个存在的目录
+THIRD_PARTY_CANDIDATES = [
+    os.path.join(REPO_DIR, "third_party", "include"),
+    os.path.join(REPO_DIR, "build", "vcpkg_installed", "x64-windows-static", "include"),
+]
+
+# imgui 源码 (需编译进 libentry.so)。优先工程内 vendored, 其次 vcpkg buildtrees。
+IMGUI_CANDIDATES = [
+    os.path.join(REPO_DIR, "third_party", "imgui"),
+    os.path.join(HOME, "Documents", "vcpkg", "buildtrees", "imgui", "src"),
+]
+
 
 def log(msg):
     print(f"[build_ascii] {msg}", flush=True)
@@ -78,6 +90,113 @@ def sync(clean_ws):
             shutil.rmtree(dst_s, ignore_errors=True)
         shutil.copytree(REPO_SRC, dst_s, ignore=IGNORE)
         log(f"同步 src     -> {dst_s}")
+
+    sync_third_party()
+    sync_imgui()
+    sync_ext_sources()
+
+
+def sync_ext_sources():
+    """解压需要完整源码的第三方库 (LASzip) 到 third_party/_src。
+
+    vcpkg 的 buildtrees 副本被裁剪过 (缺文件), 因此改用 downloads 里的完整
+    源码包; 解压由 Python tarfile 完成(避免 Windows tar 的 "C:" 主机名歧义)。
+    """
+    import tarfile
+    downloads = os.path.join(HOME, "Documents", "vcpkg", "downloads")
+    targets = [
+        # (tar 包名, third_party/_src 下的子目录, tar 内顶层目录, 就绪标记子路径)
+        ("LASzip-LASzip-3.5.0.tar.gz", "laszip", "LASzip-3.5.0", "src"),
+        ("assimp-assimp-v6.0.4.tar.gz", "assimp", "assimp-6.0.4", "code"),
+    ]
+    for tarname, sub, inner, marker_sub in targets:
+        dst = os.path.join(WS, "third_party", "_src", sub)
+        marker = os.path.join(dst, inner, marker_sub)
+        if os.path.isdir(marker):
+            log(f"源码已就绪: {sub}")
+            continue
+        tarpath = os.path.join(downloads, tarname)
+        if not os.path.isfile(tarpath):
+            log(f"跳过 {sub}: 未找到 {tarpath}")
+            continue
+        os.makedirs(dst, exist_ok=True)
+        try:
+            with tarfile.open(tarpath, "r:gz") as tf:
+                tf.extractall(dst)
+            log(f"解压完整源码 {tarname} -> {dst}")
+        except Exception as e:
+            log(f"解压 {tarname} 失败: {e}")
+
+
+def sync_third_party():
+    """把 glm / stb 头同步到 <WS>/third_party/include (CMake 会引用该目录)。"""
+    src_inc = next((p for p in THIRD_PARTY_CANDIDATES if os.path.isdir(p)), None)
+    if not src_inc:
+        log("跳过第三方头: 未找到 glm/stb 头文件目录")
+        log("  提示: 先跑一次桌面构建 (build.ps1) 生成 vcpkg_installed, 或手动放置 third_party/include")
+        return
+
+    dst_inc = os.path.join(WS, "third_party", "include")
+    os.makedirs(dst_inc, exist_ok=True)
+
+    glm_src = os.path.join(src_inc, "glm")
+    if os.path.isdir(glm_src):
+        dst_glm = os.path.join(dst_inc, "glm")
+        if os.path.exists(dst_glm):
+            shutil.rmtree(dst_glm, ignore_errors=True)
+        shutil.copytree(glm_src, dst_glm)
+        log(f"同步 glm     -> {dst_glm}")
+
+    copied = 0
+    for name in ("stb_image.h", "stb_image_write.h", "stb_image_resize2.h"):
+        s = os.path.join(src_inc, name)
+        if os.path.isfile(s):
+            shutil.copy2(s, os.path.join(dst_inc, name))
+            copied += 1
+    log(f"同步 stb     -> {dst_inc} ({copied} 个头)  [源: {src_inc}]")
+
+
+def sync_imgui():
+    """把 imgui 源码同步到 <WS>/third_party/imgui (CMake 会编译进 libentry.so)。"""
+    root = None
+    for cand in IMGUI_CANDIDATES:
+        if os.path.isfile(os.path.join(cand, "imgui.cpp")):
+            root = cand
+            break
+        if os.path.isdir(cand):                      # vcpkg buildtrees: <hash>.clean
+            for d in os.listdir(cand):
+                if os.path.isfile(os.path.join(cand, d, "imgui.cpp")):
+                    root = os.path.join(cand, d)
+                    break
+        if root:
+            break
+    if not root:
+        log("跳过 imgui: 未找到源码 (需要 imgui.cpp)")
+        return
+
+    dst = os.path.join(WS, "third_party", "imgui")
+    if os.path.exists(dst):
+        shutil.rmtree(dst, ignore_errors=True)
+    os.makedirs(dst, exist_ok=True)
+
+    core = ("imgui.cpp", "imgui_draw.cpp", "imgui_tables.cpp", "imgui_widgets.cpp",
+            "imgui.h", "imgui_internal.h", "imconfig.h",
+            "imstb_rectpack.h", "imstb_textedit.h", "imstb_truetype.h", "LICENSE.txt")
+    for name in core:
+        s = os.path.join(root, name)
+        if os.path.isfile(s):
+            shutil.copy2(s, os.path.join(dst, name))
+
+    bdst = os.path.join(dst, "backends")
+    os.makedirs(bdst, exist_ok=True)
+    bsrc = os.path.join(root, "backends")
+    for name in ("imgui_impl_opengl3.cpp", "imgui_impl_opengl3.h",
+                 "imgui_impl_opengl3_loader.h"):
+        s = os.path.join(bsrc, name)
+        if os.path.isfile(s):
+            shutil.copy2(s, os.path.join(bdst, name))
+
+    log(f"同步 imgui   -> {dst}  [源: {root}]")
 
 
 def build(task):

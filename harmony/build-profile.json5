@@ -1,10 +1,32 @@
 {
   "app": {
-    "signingConfigs": [],
+    // ---------------------------------------------------------------------
+    // 发布签名配置。
+    // 上架华为应用市场必须使用 AppGallery Connect(AGC) 签发的发布证书
+    // (.p12 / .cer / .p7b), SDK 自带的 OpenHarmony 证书无法用于华为设备。
+    // 填好本段后, 把下面 products[].signingConfig 设为 "default",
+    // 重新构建即可产出 entry-default-signed.hap。详见 harmony/README.md §4。
+    // ---------------------------------------------------------------------
+    "signingConfigs": [
+      // {
+      //   "name": "default",
+      //   "type": "HarmonyOS",
+      //   "material": {
+      //     "storeFile": "C:/keys/your.p12",
+      //     "storePassword": "<AGC 加密后的 store 密码>",
+      //     "keyAlias": "<keyAlias>",
+      //     "keyPassword": "<AGC 加密后的 key 密码>",
+      //     "signAlg": "SHA256withECDSA",
+      //     "certpath": "C:/keys/your.cer",
+      //     "profile": "C:/keys/your.p7b"
+      //   }
+      // }
+    ],
     "products": [
       {
         "name": "default",
         "compatibleSdkVersion": "5.0.0(12)",
+        "targetSdkVersion": "5.0.0(12)",
         "runtimeOS": "HarmonyOS",
         "buildOption": {
           "strictMode": {

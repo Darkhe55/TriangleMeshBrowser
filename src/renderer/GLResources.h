@@ -2,7 +2,13 @@
 // OpenGL 资源 RAII 包装
 #pragma once
 
-#include <GL/glew.h>
+// OpenGL 头适配: 桌面平台用 GLEW (GL 3.3 core), 鸿蒙用 GLES 3.0
+// (OHOS sysroot 提供 GLES3/gl3.h, 无 gl3ext.h; 扩展声明已在 gl3.h 内)
+#ifdef PRISM_OHOS
+  #include <GLES3/gl3.h>
+#else
+  #include <GL/glew.h>
+#endif
 #include <utility>
 #include <stdexcept>
 #include <string>

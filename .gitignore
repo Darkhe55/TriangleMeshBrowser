@@ -11,3 +11,16 @@ CMakeUserPresets.json
 Thumbs.db
 imgui.ini
 videos/
+
+# ---- HarmonyOS ----
+harmony/build/
+harmony/build-output/
+harmony/entry/build/
+harmony/entry/.cxx/
+harmony/entry/oh_modules/
+harmony/oh_modules/
+harmony/.hvigor/
+harmony/.clangd/
+harmony/oh-package-lock.json5
+# 含本机 SDK 绝对路径, 不入库
+harmony/local.properties

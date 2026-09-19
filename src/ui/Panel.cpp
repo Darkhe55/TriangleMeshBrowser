@@ -3,7 +3,9 @@
 #include "../model/Procedural.h"
 #include "../utils/I18n.h"
 #include <imgui.h>
-#include <GLFW/glfw3.h>
+#ifndef PRISM_OHOS
+#include <GLFW/glfw3.h>   // 桌面平台窗口/剪贴板; 鸿蒙由 XComponent 接管
+#endif
 #include <cstring>
 
 namespace prism {
@@ -52,7 +54,7 @@ void Panel::drawMenuBar(ViewState& s, UiRequest& req, bool materialsLoaded) {
     if (ImGui::Button(tr("menu.settings"))) {
         ImGui::OpenPopup("##settings_popup");
     }
-    if (ImGui::IsItemHovered()) ImGui::SetTooltip(tr("menu.settings"));
+    if (ImGui::IsItemHovered()) ImGui::SetTooltip("%s", tr("menu.settings"));
     if (ImGui::BeginPopup("##settings_popup")) {
         if (ImGui::MenuItem(tr("settings.showAxis"),  nullptr, s.showAxisGizmo))  s.showAxisGizmo  = !s.showAxisGizmo;
         if (ImGui::MenuItem(tr("settings.showGrid"), nullptr, s.showGrid))     s.showGrid       = !s.showGrid;
@@ -65,7 +67,7 @@ void Panel::drawMenuBar(ViewState& s, UiRequest& req, bool materialsLoaded) {
         ImGui::TextDisabled("%s", tr("settings.wasd"));
         if (ImGui::MenuItem(tr("settings.enableWasd"), nullptr, s.enableWASD)) s.enableWASD = !s.enableWASD;
         ImGui::SliderFloat(tr("settings.moveSpeed"), &s.moveSpeed, 0.1f, 20.0f);
-        if (ImGui::IsItemHovered()) ImGui::SetTooltip(tr("settings.wasdTip"));
+        if (ImGui::IsItemHovered()) ImGui::SetTooltip("%s", tr("settings.wasdTip"));
         ImGui::Separator();
         ImGui::TextDisabled("%s", tr("settings.language"));
         if (ImGui::MenuItem("中文",    nullptr, i18n::language() == i18n::Language::Zh))
