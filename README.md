@@ -59,17 +59,19 @@ A lightweight, standalone 3D triangle-mesh browser built with C++17 + OpenGL 3.3
 | Platform / 平台 | Status / 状态 | Notes / 说明 |
 |-----------------|--------------|-------------|
 | **Windows (x64)** | ✅ Released / 已发布 | Single-file `PrismViewer.exe`, fully static, ~3.5 MB, no installer / 单文件、全静态链接、约 3.5 MB、免安装 |
-| **HarmonyOS PC / 鸿蒙 PC** | 🚧 **In development / 开发中** | Native port — ArkTS shell + `XComponent` + **OpenGL ES 3.0**, reusing the same C++ core / 原生移植：ArkTS 壳 + `XComponent` + **OpenGL ES 3.0** 渲染层，复用同一套 C++ 内核 |
+| **HarmonyOS PC / 鸿蒙 PC** | 🚧 **In development / 开发中** | Native port — ArkTS shell + `XComponent` + **OpenGL ES 3.0**, reusing the same C++ core. **All 13 formats already supported** / 原生移植：ArkTS 壳 + `XComponent` + **OpenGL ES 3.0** 渲染层，复用同一套 C++ 内核；**13 种格式已全部支持** |
 
 > **HarmonyOS port / 鸿蒙移植**：工程骨架、EGL/GLES3 渲染线程、输入适配（触摸/鼠标/按键/滚轮）、
 > 模型与渲染内核、ImGui 控制面板（GLES3 后端 + 中文字体）均已打通并**构建成功**；
-> 正在补齐 Assimp（FBX/glTF/DAE/3MF）与 laszip（LAS/LAZ）的交叉编译，随后接入发布签名。
+> Assimp（FBX/glTF/GLB/DAE/3MF）、laszip（LAS/LAZ）、pugixml（E57）已全部交叉编译并链接，
+> **13 种格式与桌面版完全一致**（当前 `.hap` 约 12.8 MB）。剩余：发布签名与平台细节适配。
 > 源码位于 [`harmony/`](harmony/)，构建与上架说明见 [`harmony/README.md`](harmony/README.md)。
 >
 > **HarmonyOS port / 鸿蒙移植**：scaffolding, the EGL/GLES3 render thread, input adaptation
 > (touch / mouse / key / wheel), the model + renderer core and the ImGui panel (GLES3 backend
-> with CJK font) are all working and **build successfully**. Assimp (FBX/glTF/DAE/3MF) and
-> laszip (LAS/LAZ) cross-compilation is in progress, followed by release signing.
+> with CJK font) all work and **build successfully**. Assimp (FBX/glTF/GLB/DAE/3MF),
+> laszip (LAS/LAZ) and pugixml (E57) are cross-compiled and linked — **all 13 formats match
+> the desktop build** (`.hap` ≈ 12.8 MB). Remaining: release signing and platform details.
 > Sources live in [`harmony/`](harmony/); build & publishing guide in [`harmony/README.md`](harmony/README.md).
 
 ---

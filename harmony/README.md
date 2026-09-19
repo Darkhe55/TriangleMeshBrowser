@@ -172,14 +172,13 @@ python tools/build_ascii.py
 - [x] **模型/渲染内核接入**: `Mesh` / `Procedural` / `MeshRenderer` / `Shader`
 - [x] **GLSL 3.30 → GLSL ES 3.00 运行时转换**（着色器嵌入 `.so`，无需资源文件）
 - [x] GL 头适配（`GLResources.h` 按平台切 GLEW / GLES3）
-- [x] 构建产出 `.hap`（约 4.0 MB，含内核）
+- [x] **ImGui 控制面板**（源码编译 + GLES3 后端 + 中文字体）
+- [x] **完整格式支持**：交叉编译并链接 **Assimp**（FBX / glTF / GLB / DAE / 3MF）、
+      **laszip**（LAS / LAZ）、**pugixml**（E57）—— 与桌面版一致的全部 13 种格式
+- [x] 构建产出 `.hap`（**约 12.8 MB**，含内核 + ImGui + 全部格式）
 
 ### 待完成
 
-- [ ] **ImGui 控制面板**：需先把 imgui 源码交叉编译到 OHOS（`imgui_impl_opengl3` 走 GLES3）
-- [ ] **完整格式支持**：交叉编译 Assimp / laszip / pugixml 后，去掉
-      `ModelLoader.cpp` 中的 `#ifndef PRISM_OHOS` 守卫即可启用
-      FBX / glTF / DAE / 3MF / LAS / LAZ / E57
 - [ ] 文件选择器（替代 Win32 `GetOpenFileName`）
 - [ ] IME 适配（替代 Win32 IMM）
 - [ ] 触摸手势（双指缩放/旋转）与 `OrbitCamera` 完整对接

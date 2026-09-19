@@ -158,14 +158,12 @@ def build_laszip(abis):
     sdir = os.path.join(src, "src")
     ddir = os.path.join(src, "dll")
 
-    # 补上游缺失的 lasreader.hpp (桩): lasindex.cpp 仅用其指针类型
+    # 注意: 编译时定义 LASZIPDLL_EXPORTS —— lasindex.cpp 据此走 LASreadPoint 分支
+    # (DLL 模式), 从而不需要上游未随包分发的 LASlib 头 lasreader.hpp。
+    # 旧生成的桩头若存在则删除, 避免混淆。
     stub = os.path.join(sdir, "lasreader.hpp")
-    if not os.path.isfile(stub):
-        with open(stub, "w", encoding="utf-8") as f:
-            f.write("// 桩: LASzip 3.5.0 源码缺此头 (上游缺陷)。\n"
-                    "// lasindex.hpp 已前向声明 class LASreader, 保持同样声明即可编译。\n"
-                    "#pragma once\nclass LASreader;\n")
-        log(f"  生成桩头 lasreader.hpp")
+    if os.path.isfile(stub):
+        os.remove(stub)
 
     inc_dirs = [
         os.path.join(src, "include"),
@@ -190,14 +188,12 @@ def build_laszip(abis):
     ]
     cpp = [os.path.join(sdir, f) for f in LASZIP_SOURCES
            if os.path.isfile(os.path.join(sdir, f))]
-    listed = {os.path.basename(p) for p in cpp}
-    for p in sorted(glob.glob(os.path.join(sdir, "*.cpp"))):
-        if os.path.basename(p) not in listed:
-            cpp.append(p)
+    # 只编译官方列表: 目录里的 lasunzipper.cpp / laszipper.cpp 是 .laz 文件级封装,
+    # 不在 LASZIP_SOURCES 内 (它们引用未随包分发的 LASlib/宏), 编译会失败。
     if not cpp:
         log("跳过 laszip: 未找到源文件")
         return False
-    log(f"  laszip 源文件 {len(cpp)} 个")
+    log(f"  laszip 源文件 {len(cpp)} 个 (官方列表)")
 
     out = out_dir("laszip")
     inc_lz = os.path.join(out, "include", "laszip")
@@ -210,7 +206,7 @@ def build_laszip(abis):
     for abi in abis:
         objdir = os.path.join(out, "obj", abi)
         objs = compile_objects(cpp, objdir, inc_dirs, abi, cxx=True,
-                               extra=["-DLASZIP_DLL=", "-Os"])
+                               extra=["-DLASZIPDLL_EXPORTS", "-Os"])
         libdir = os.path.join(out, "lib", abi)
         os.makedirs(libdir, exist_ok=True)
         archive(objs, os.path.join(libdir, "liblaszip.a"))
@@ -266,6 +262,21 @@ def build_assimp(abis):
     for abi in abis:
         # OHOS_ARCH 只接受 arm64-v8a / armeabi-v7a / x86_64 (传 "arm64" 会 FATAL_ERROR)
         bdir = os.path.join(out, "build", abi)
+
+        # 源码目录可能变化(vcpkg buildtrees -> 上游 tar), 过期缓存会让 cmake 拒绝复用,
+        # 报 "does not match the source ... used to generate cache" -> 检测并清理。
+        cache = os.path.join(bdir, "CMakeCache.txt")
+        if os.path.isfile(cache):
+            try:
+                with open(cache, encoding="utf-8", errors="replace") as f:
+                    cached = f.read()
+            except OSError:
+                cached = ""
+            want = os.path.normpath(src).replace("\\", "/")
+            if want not in cached.replace("\\", "/"):
+                log(f"  源码目录已变, 清理过期缓存: {bdir}")
+                shutil.rmtree(bdir, ignore_errors=True)
+
         cfg = [
             "-S", src, "-B", bdir, "-G", "Ninja",
             f"-DCMAKE_MAKE_PROGRAM={ninja}",
@@ -313,6 +324,17 @@ def build_assimp(abis):
         os.makedirs(libdir, exist_ok=True)
         shutil.copy2(found[0], os.path.join(libdir, "libassimp.a"))
         log(f"  -> {os.path.join(libdir, 'libassimp.a')} ({os.path.getsize(found[0])} bytes)")
+
+        # ASSIMP_BUILD_ZLIB=ON 会把自带的 zlib 编成**独立**静态库 (contrib/zlib/
+        # libzlibstatic.a), 其符号不在 libassimp.a 内 -> 必须一并收集并链接,
+        # 否则最终会报 inflate*/crc32 未定义。
+        zlibs = glob.glob(os.path.join(bdir, "**", "libzlibstatic.a"), recursive=True) \
+            or glob.glob(os.path.join(bdir, "**", "libz.a"), recursive=True)
+        if zlibs:
+            shutil.copy2(zlibs[0], os.path.join(libdir, "libzlib.a"))
+            log(f"  -> {os.path.join(libdir, 'libzlib.a')} ({os.path.getsize(zlibs[0])} bytes)")
+        else:
+            log("  警告: 未找到 assimp 自带的 zlib 静态库, 链接可能缺 zlib 符号")
 
     # 头文件 (含构建期生成的 config.h)
     inc_dst = os.path.join(out, "include")
