@@ -1,0 +1,7 @@
+{
+  "modelVersion": "5.0.0",
+  "name": "triangle-mesh-browser",
+  "version": "1.0.0",
+  "description": "三角网格浏览器 - HarmonyOS PC 版",
+  "dependencies": {}
+}

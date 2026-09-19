@@ -1,0 +1,39 @@
+{
+  "HVIGOR": {
+    "IS_INCREMENTAL": true,
+    "IS_DAEMON": false,
+    "IS_PARALLEL": true,
+    "IS_HVIGORFILE_TYPE_CHECK": false,
+    "IS_EXECUTION_OHPM_BY_HVIGOR": false,
+    "IS_SYNCNATIVE_COMPILATION": false,
+    "BUILD_ANALYSIS_MODE": "normal",
+    "OPTIMIZATION_STRATEGY": "memory",
+    "TASK_TIME": {},
+    "CUSTOM_TASK_TIME": {},
+    "CUSTOM_PLUGIN_TIME": {},
+    "APIS": [],
+    "CONFIG_EXPERIMENT": {
+      "ENABLE_MODULE_SKIP": false,
+      "ENABLE_CPP_FUNCTION_LEVEL_INCREMENTAL": false
+    },
+    "CONFIG_PROPERTIES": {},
+    "BUILD_ID": "202609191902222930",
+    "PID": 43484,
+    "ERROR_MESSAGE": [
+      {
+        "CODE": "00306003",
+        "MESSAGE": "Invalid project path. Current path does not match: %s",
+        "SOLUTIONS": [
+          "Please modify the project path to ensure that it only contains letters, digits, hyphens (-), underscores (_), periods (.), english parentheses (()), spaces, or the @ symbol"
+        ],
+        "TIMESTAMP": "1789815744461"
+      },
+      {
+        "CODE": "00306003",
+        "STACK": "00306003 Specification Limit Violation\n...",
+        "PROJECT_CONFIG": {}
+      }
+    ],
+    "TOTAL_TIME": 2175258400
+  }
+}
