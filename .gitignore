@@ -28,3 +28,6 @@ harmony/local.properties
 harmony/build-profile.json5
 # 含签名密码, 不入库 (模板见 harmony/signing.local.json.example)
 harmony/signing.local.json
+# 构建日志, 含本机绝对路径, 不入库
+harmony/build_log.txt
+harmony/build_log*.txt
