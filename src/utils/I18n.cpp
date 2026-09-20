@@ -152,6 +152,10 @@ constexpr Entry kEntries[] = {
     {"toast.exportFailed",     "导出失败: ",                "Export failed: "},
     {"toast.saved",            "已保存: ",                  "Saved: "},
     {"toast.shotFailed",       "截图失败: ",                "Screenshot failed: "},
+    // 鸿蒙版: 文件选择器 / 沙箱路径回传后的提示
+    {"toast.loaded",           "已加载: ",                  "Loaded: "},
+    {"toast.cleared",          "已清除模型",                "Model cleared"},
+    {"toast.shotSaved",        "截图已保存: ",              "Screenshot saved: "},
 };
 
 } // namespace

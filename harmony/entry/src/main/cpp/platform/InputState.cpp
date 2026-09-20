@@ -3,9 +3,9 @@
 
 namespace prism {
 
-void InputState::pushPointer(float x, float y, PointerAction action, int button) {
+void InputState::pushPointer(float x, float y, PointerAction action, int button, int id) {
     std::lock_guard<std::mutex> lock(mtx_);
-    pointer_.push_back(PointerEvent{x, y, action, button});
+    pointer_.push_back(PointerEvent{x, y, action, button, id});
 }
 
 void InputState::pushKey(int code, bool pressed) {

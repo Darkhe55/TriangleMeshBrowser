@@ -101,7 +101,6 @@ void DispatchTouchEventCB(OH_NativeXComponent* component, void* window) {
     if (OH_NativeXComponent_GetTouchEvent(component, window, &touchEvent) != 0) return;
     if (touchEvent.numPoints == 0) return;
 
-    const auto& p = touchEvent.touchPoints[0];
     prism::PointerAction action = prism::PointerAction::Move;
     switch (touchEvent.type) {
         case OH_NATIVEXCOMPONENT_DOWN:   action = prism::PointerAction::Down;   break;
@@ -110,7 +109,16 @@ void DispatchTouchEventCB(OH_NativeXComponent* component, void* window) {
         case OH_NATIVEXCOMPONENT_CANCEL: action = prism::PointerAction::Cancel; break;
         default: return;
     }
-    g_input.pushPointer(p.x, p.y, action, OH_NATIVEXCOMPONENT_LEFT_BUTTON);
+
+    // 多指手势(双指捏合缩放 / 双指旋转)需要全部触点, 因此这里推送所有点,
+    // 并以数组下标作为触点 id 交给渲染线程做手势识别。
+    uint32_t count = touchEvent.numPoints;
+    if (count > OH_MAX_TOUCH_POINTS_NUMBER) count = OH_MAX_TOUCH_POINTS_NUMBER;
+    for (uint32_t i = 0; i < count; ++i) {
+        const auto& p = touchEvent.touchPoints[i];
+        g_input.pushPointer(p.x, p.y, action, OH_NATIVEXCOMPONENT_LEFT_BUTTON,
+                            static_cast<int>(i));
+    }
 }
 
 void DispatchMouseEventCB(OH_NativeXComponent* component, void* window) {
@@ -145,6 +153,69 @@ void OnKeyEventCB(OH_NativeXComponent* component, void* /*window*/) {
 OH_NativeXComponent_Callback g_surfaceCallback;
 OH_NativeXComponent_MouseEvent_Callback g_mouseCallback;
 
+// ---------------- ArkTS <-> Native 桥接 ----------------
+// ArkTS 侧以轮询方式与 Native 协作 (避免 threadsafe function 的复杂度):
+//   1. ArkTS 每 ~200ms 调 pollOpenFileRequest(); true 则弹系统文件选择器
+//   2. 选中后把文件复制进应用沙箱, 调 submitModelPath(沙箱路径)
+//   3. 截图由 Native 写入沙箱, ArkTS 轮询 pollScreenshotPath() 取回并存入媒体库
+
+napi_value JsPollOpenFileRequest(napi_env env, napi_callback_info /*info*/) {
+    napi_value result = nullptr;
+    napi_get_boolean(env, g_viewer.takeOpenFileRequest(), &result);
+    return result;
+}
+
+napi_value JsSubmitModelPath(napi_env env, napi_callback_info info) {
+    std::size_t argc = 1;
+    napi_value argv[1] = {nullptr};
+    napi_get_cb_info(env, info, &argc, argv, nullptr, nullptr);
+    if (argc < 1 || argv[0] == nullptr) return nullptr;
+
+    std::size_t len = 0;
+    if (napi_get_value_string_utf8(env, argv[0], nullptr, 0, &len) != napi_ok || len == 0) {
+        return nullptr;
+    }
+    std::string path(len + 1, '\0');
+    if (napi_get_value_string_utf8(env, argv[0], path.data(), len + 1, &len) != napi_ok) {
+        return nullptr;
+    }
+    path.resize(len);
+    g_viewer.submitModelPath(path);
+    return nullptr;
+}
+
+napi_value JsSetSandboxDir(napi_env env, napi_callback_info info) {
+    std::size_t argc = 1;
+    napi_value argv[1] = {nullptr};
+    napi_get_cb_info(env, info, &argc, argv, nullptr, nullptr);
+    if (argc < 1 || argv[0] == nullptr) return nullptr;
+
+    std::size_t len = 0;
+    if (napi_get_value_string_utf8(env, argv[0], nullptr, 0, &len) != napi_ok) return nullptr;
+    std::string dir(len + 1, '\0');
+    if (napi_get_value_string_utf8(env, argv[0], dir.data(), len + 1, &len) != napi_ok) {
+        return nullptr;
+    }
+    dir.resize(len);
+    g_viewer.setSandboxDir(dir);
+    return nullptr;
+}
+
+napi_value JsPollScreenshotPath(napi_env env, napi_callback_info /*info*/) {
+    std::string path;
+    g_viewer.takeScreenshotResult(path);      // 无则保持空串
+    napi_value result = nullptr;
+    napi_create_string_utf8(env, path.c_str(), path.size(), &result);
+    return result;
+}
+
+napi_value JsPollLastError(napi_env env, napi_callback_info /*info*/) {
+    const std::string err = g_viewer.takeLastError();
+    napi_value result = nullptr;
+    napi_create_string_utf8(env, err.c_str(), err.size(), &result);
+    return result;
+}
+
 // ---------------- NAPI 模块注册 ----------------
 napi_value Init(napi_env env, napi_value exports) {
     napi_value exportInstance = nullptr;
@@ -168,6 +239,21 @@ napi_value Init(napi_env env, napi_value exports) {
     OH_NativeXComponent_RegisterMouseEventCallback(g_xcomponent, &g_mouseCallback);
 
     OH_NativeXComponent_RegisterKeyEventCallback(g_xcomponent, OnKeyEventCB);
+
+    // 暴露给 ArkTS 壳的方法
+    napi_property_descriptor props[] = {
+        {"pollOpenFileRequest", nullptr, JsPollOpenFileRequest, nullptr, nullptr, nullptr,
+         napi_default, nullptr},
+        {"submitModelPath",     nullptr, JsSubmitModelPath,     nullptr, nullptr, nullptr,
+         napi_default, nullptr},
+        {"setSandboxDir",       nullptr, JsSetSandboxDir,       nullptr, nullptr, nullptr,
+         napi_default, nullptr},
+        {"pollScreenshotPath",  nullptr, JsPollScreenshotPath,  nullptr, nullptr, nullptr,
+         napi_default, nullptr},
+        {"pollLastError",       nullptr, JsPollLastError,       nullptr, nullptr, nullptr,
+         napi_default, nullptr},
+    };
+    napi_define_properties(env, exports, sizeof(props) / sizeof(props[0]), props);
 
     LOGI("NAPI Init done");
     return exports;

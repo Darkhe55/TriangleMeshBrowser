@@ -67,6 +67,7 @@ set(PRISM_CORE_SOURCES
     ${PRISM_SRC}/model/OFFLoader.cpp
     ${PRISM_SRC}/model/PMXLoader.cpp
     ${PRISM_SRC}/model/Procedural.cpp
+    ${PRISM_SRC}/model/MeshWriter.cpp
     # 渲染层 (GL 经 GLResources.h 适配到 GLES3)
     ${PRISM_SRC}/renderer/Shader.cpp
     ${PRISM_SRC}/renderer/MeshRenderer.cpp

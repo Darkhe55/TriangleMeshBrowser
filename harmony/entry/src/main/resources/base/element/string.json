@@ -2,15 +2,15 @@
   "string": [
     {
       "name": "module_desc",
-      "value": "三角网格浏览器主模块"
+      "value": "棱镜模型查看器主模块"
     },
     {
       "name": "EntryAbility_desc",
-      "value": "三角网格浏览器"
+      "value": "棱镜模型查看器"
     },
     {
       "name": "EntryAbility_label",
-      "value": "三角网格浏览器"
+      "value": "棱镜模型查看器"
     }
   ]
 }

@@ -15,6 +15,8 @@ struct PointerEvent {
     float y = 0.f;
     PointerAction action = PointerAction::Move;
     int button = 0;
+    // 触点索引: 0 = 主触点。多指手势(捏合缩放/双指旋转)据此区分手指。
+    int id = 0;
 };
 
 struct KeyEventData {
@@ -24,7 +26,7 @@ struct KeyEventData {
 
 class InputState {
 public:
-    void pushPointer(float x, float y, PointerAction action, int button);
+    void pushPointer(float x, float y, PointerAction action, int button, int id = 0);
     void pushKey(int code, bool pressed);
     void pushScroll(float dy);
 
