@@ -1,37 +1,24 @@
 // harmony/build-profile.json5 模板
 //
-// 用法:
-//   1. 复制本文件为同目录下的 build-profile.json5 (该文件已被 .gitignore 忽略)
-//   2. 把下面的 <...> 占位符换成你自己的路径与密码
-//   3. 构建: python tools/build_ascii.py
+// 用法: 复制本文件为同目录下的 build-profile.json5 (该文件已被 .gitignore 忽略)。
+//
+// 注意: 签名材料 **不** 写在这里。hvigor 只接受 DevEco Studio 用本机密钥
+//       加密后的密文密码(长度 >= 32), 明文会报:
+//          00303116 Configuration Error: The length of the storePassword or
+//          keyPassword field in the signature configuration is less than 32.
+//       因此本文件保持 signingConfigs 为空, 由 tools/build_ascii.py 在构建
+//       完成后调用 SDK 自带的 hap-sign-tool.jar 手动签名。
+//
+// 签名密码请填在 harmony/signing.local.json (模板见 signing.local.json.example)。
 //
 // 签名三件套获取方式见 harmony/README.md §4:
 //   本地 keytool 生成 .p12 + .csr  →  AGC「证书管理」换取 .cer  →  AGC「Profile 管理」换取 .p7b
 {
   "app": {
-    "signingConfigs": [
-      {
-        "name": "default",
-        "type": "HarmonyOS",
-        "material": {
-          // 本地生成的密钥库 (keytool -genkeypair)
-          "storeFile": "<你的 keys 目录>/prismviewer.p12",
-          // 生成 .p12 时设置的密钥库密码与密钥密码 (PKCS12 下两者相同)
-          "storePassword": "<STORE_PASSWORD>",
-          "keyAlias": "<你的 keyAlias, 例如 prismviewer_key>",
-          "keyPassword": "<KEY_PASSWORD>",
-          "signAlg": "SHA256withECDSA",
-          // AGC「证书管理」下载的应用证书
-          "certpath": "<你的 keys 目录>/xxx.cer",
-          // AGC「Profile 管理」下载的发布 Profile
-          "profile": "<你的 keys 目录>/xxx.p7b"
-        }
-      }
-    ],
+    "signingConfigs": [],
     "products": [
       {
         "name": "default",
-        "signingConfig": "default",
         "compatibleSdkVersion": "5.0.0(12)",
         "targetSdkVersion": "5.0.0(12)",
         "runtimeOS": "HarmonyOS",

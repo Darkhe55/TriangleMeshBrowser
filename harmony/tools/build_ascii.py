@@ -42,7 +42,15 @@ DEVECO = os.environ.get(
 
 IGNORE = shutil.ignore_patterns(
     "build", ".cxx", "oh_modules", "node_modules", ".git", "*.log", "*.hap",
+    "signing.local.json",   # 含密码, 不复制到工作区
 )
+
+# 签名材料 (密码等), 不入库; 模板见 harmony/signing.local.json.example
+SIGNING_JSON = os.path.join(HARMONY_DIR, "signing.local.json")
+
+# SDK 自带的签名工具
+SIGN_TOOL = os.path.join(DEVECO, "sdk", "default", "openharmony",
+                         "toolchains", "lib", "hap-sign-tool.jar")
 
 # header-only 第三方依赖 (glm / stb) 的搜索位置, 按序取第一个存在的目录
 THIRD_PARTY_CANDIDATES = [
@@ -236,10 +244,83 @@ def collect_hap():
         log(f"产物: {dst}  ({os.path.getsize(dst)} bytes)")
 
 
+def sign_hap():
+    """用 SDK 自带的 hap-sign-tool.jar 对 unsigned .hap 签名。
+
+    hvigor 只接受 DevEco Studio 用本机密钥加密后的密文密码(长度 >= 32),
+    明文会报 "00303116 Configuration Error: ...less than 32"。因此签名不在
+    build-profile.json5 里做, 而是构建完成后在此处完成: 读取
+    harmony/signing.local.json 中的 .p12 / .cer / .p7b 与密码。
+    """
+    import glob
+    import json
+
+    if not os.path.isfile(SIGNING_JSON):
+        log("跳过签名: 未找到 harmony/signing.local.json "
+            "(模板见 harmony/signing.local.json.example)")
+        return 0
+    if not os.path.isfile(SIGN_TOOL):
+        log(f"跳过签名: 未找到 {SIGN_TOOL}")
+        return 0
+
+    try:
+        with open(SIGNING_JSON, encoding="utf-8") as f:
+            cfg = json.load(f)
+    except Exception as e:
+        log(f"跳过签名: 读取 signing.local.json 失败: {e}")
+        return 1
+
+    required = ("keystoreFile", "keystorePwd", "keyAlias",
+                "keyPwd", "appCertFile", "profileFile")
+    missing = [k for k in required if not cfg.get(k)]
+    if missing:
+        log(f"跳过签名: signing.local.json 缺少字段 {missing}")
+        return 1
+
+    out_dir = os.path.join(HARMONY_DIR, "build-output")
+    targets = sorted(p for p in glob.glob(os.path.join(out_dir, "*.hap"))
+                     if p.endswith("-unsigned.hap"))
+    if not targets:
+        log("跳过签名: build-output 中没有 -unsigned.hap")
+        return 0
+
+    rc = 0
+    for src in targets:
+        dst = src[: -len("-unsigned.hap")] + "-signed.hap"
+        cmd = [
+            "java", "-jar", SIGN_TOOL, "sign-app",
+            "-mode", "localSign",
+            "-keyAlias", str(cfg["keyAlias"]),
+            "-keyPwd", str(cfg["keyPwd"]),
+            "-appCertFile", str(cfg["appCertFile"]),
+            "-profileFile", str(cfg["profileFile"]),
+            "-profileSigned", "1",
+            "-inFile", src,
+            "-outFile", dst,
+            "-signAlg", str(cfg.get("signAlg", "SHA256withECDSA")),
+            "-keystoreFile", str(cfg["keystoreFile"]),
+            "-keystorePwd", str(cfg["keystorePwd"]),
+            "-compatibleVersion", str(cfg.get("compatibleVersion", "12")),
+        ]
+        log(f"签名: {os.path.basename(src)} -> {os.path.basename(dst)}")
+        proc = subprocess.run(cmd, capture_output=True, text=True,
+                              errors="replace")
+        for line in ((proc.stdout or "") + (proc.stderr or "")).splitlines():
+            if "ERROR" in line.upper():
+                log("  " + line.strip())
+        if proc.returncode != 0 or not os.path.isfile(dst):
+            log(f"签名失败 (exit={proc.returncode})")
+            rc = 1
+            continue
+        log(f"已签名: {dst}  ({os.path.getsize(dst)} bytes)")
+    return rc
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--clean", action="store_true", help="构建前清理工作区")
     ap.add_argument("--task", default="assembleHap", help="hvigor 任务 (默认 assembleHap)")
+    ap.add_argument("--no-sign", action="store_true", help="跳过签名步骤")
     args = ap.parse_args()
 
     log(f"工作区   : {WS}")
@@ -248,6 +329,8 @@ def main():
     rc = build(args.task)
     if rc == 0:
         collect_hap()
+        if not args.no_sign:
+            sign_hap()
     log("构建成功" if rc == 0 else f"构建失败 (exit={rc})")
     return rc
 

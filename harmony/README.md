@@ -85,10 +85,12 @@ python tools/build_ascii.py
 ### 3.3 构建产物
 
 ```
-browser/harmony/build-output/entry-default-unsigned.hap
+browser/harmony/build-output/entry-default-signed.hap     # 已签名, 可上架
+browser/harmony/build-output/entry-default-unsigned.hap   # 未签名中间产物
 ```
 
-> 目前为**未签名**包 —— 因为签名需要你的发布证书，见第 4 节。
+> 构建脚本会在 hvigor 出包后自动调用 SDK 自带的 `hap-sign-tool.jar` 完成签名
+> （材料配置见第 4 节）。只想出未签名包时加 `--no-sign`。
 
 ---
 
@@ -101,63 +103,109 @@ browser/harmony/build-output/entry-default-unsigned.hap
   - **无法安装到华为 HarmonyOS 设备**（含鸿蒙 PC），也**无法上架**
 - 上架华为应用市场必须使用 **AppGallery Connect（AGC）签发的发布证书**。
 
-### 4.2 申请证书（在 AGC 完成，一次性）
+### 4.2 准备签名材料（一次性）
 
-1. 注册华为开发者账号并完成**实名认证**
-2. 登录 [AppGallery Connect](https://developer.huawei.com/consumer/cn/service/josp/agc/index.html)
-3. **用户与访问 → 密钥管理** 创建密钥，得到 `.p12`（私钥库）
-4. **证书管理** 申请证书，得到 `.cer`（证书）
-5. **Profile 管理** 创建发布 Profile（需先创建应用），得到 `.p7b`
-6. 记录：`bundleName`、keyAlias、两个密码
+**不需要安装 DevEco Studio** —— 用 SDK 自带 JDK 的 `keytool` + AGC 网页即可完成。
 
-> `AppScope/app.json5` 的 `bundleName` 必须与 AGC 中创建的应用一致
-> （当前为 `com.prism.trianglemesh`，请改为你注册的包名）。
+**第 1 步：本地生成密钥库与证书请求**
+
+`.p12` 是**在本地生成**的（不是从 AGC 下载）：
+
+```bash
+keytool -genkeypair -alias prismviewer_key \
+  -keyalg EC -groupname secp256r1 \
+  -keystore prismviewer.p12 -storetype PKCS12 \
+  -storepass "你的密码" -keypass "你的密码" -validity 3650 \
+  -dname "CN=PrismViewer, OU=Dev, O=Darkhe55, L=City, ST=State, C=CN"
+
+keytool -certreq -alias prismviewer_key \
+  -keystore prismviewer.p12 -storepass "你的密码" \
+  -file prismviewer.csr
+```
+
+> - 密码 **≥6 位**；PKCS12 下 `storepass` 与 `keypass` **必须相同**
+> - 务必记牢三样：`keyAlias`、`storepass`、`keypass` —— `.p12` 丢失不可恢复
+> - 想换密码且**不重新申请证书**：`keytool -storepasswd -keystore prismviewer.p12 -storepass 旧 -new 新`
+
+**第 2 步：在 AGC 注册应用**
+
+- 应用类型选「**应用**」（非游戏）；填**应用包名** —— 创建后**不可修改**，
+  且必须与 `AppScope/app.json5` 的 `bundleName` 一致
+- **开放能力：本应用一个都不用勾**。它只使用基础能力（ArkUI / XComponent /
+  NDK 图形 / 文件读取），不涉及账号、推送、定位、支付等需单独开通的服务，
+  直接跳过（该配置会写入 Profile，若之后改动需**重新下载 `.p7b`**）
+
+**第 3 步：AGC →「证书、APP ID 和 Profile」→ 证书 → 新增证书**
+
+- 类型选 **发布证书**，上传第 1 步生成的 `.csr` → 下载 **`.cer`**
+
+**第 4 步：同页面 → Profile → 添加**
+
+| 字段 | 填写 |
+|------|------|
+| 应用名称 | 选择第 2 步创建的应用 |
+| Profile 名称 | 自定义，如 `PrismViewer-Release`（≤100 字符） |
+| 类型 | **发布**（上架用；真机调试需另建调试证书 + 调试 Profile） |
+| 选择证书 | 选第 3 步的发布证书（**类型与证书必须匹配**） |
+| 选择设备 | 发布类型**无此项**（设备列表为空 = 全设备） |
+| 申请权限 | **留空**（本工程未声明任何受限/ACL 权限） |
+
+→ 下载 **`.p7b`**
+
+**第 5 步：备齐 4 项**：三个文件路径 + `keyAlias` + 密码
 
 ### 4.3 配置签名
 
-编辑 `harmony/build-profile.json5`，填入 `signingConfigs`：
+签名材料**不写进** `build-profile.json5`。原因：hvigor 只接受 DevEco Studio 用本机
+密钥加密后的密文密码（长度必然 ≥32），**明文密码一律被拒绝**并报：
 
-```json5
+```
+00303116 Configuration Error: The length of the storePassword or keyPassword
+field in the signature configuration is less than 32.
+```
+
+因此本项目把签名移到构建脚本里：`tools/build_ascii.py` 在 hvigor 出包后调用
+SDK 自带的 `hap-sign-tool.jar` 完成签名（同样产出 `entry-default-signed.hap`，
+无需 DevEco Studio）。
+
+把材料填进 `harmony/signing.local.json`（复制 `signing.local.json.example` 得到；
+该文件已被 `.gitignore` 忽略，**密码不会入库**）：
+
+```json
 {
-  "app": {
-    "signingConfigs": [
-      {
-        "name": "default",
-        "type": "HarmonyOS",
-        "material": {
-          "storeFile": "C:/keys/你的.p12",
-          "storePassword": "<加密后的 store 密码>",
-          "keyAlias": "<keyAlias>",
-          "keyPassword": "<加密后的 key 密码>",
-          "signAlg": "SHA256withECDSA",
-          "certpath": "C:/keys/你的.cer",
-          "profile": "C:/keys/你的.p7b"
-        }
-      }
-    ],
-    "products": [
-      {
-        "name": "default",
-        "signingConfig": "default",
-        "compatibleSdkVersion": "5.0.0(12)",
-        "targetSdkVersion": "5.0.0(12)",
-        "runtimeOS": "HarmonyOS"
-      }
-    ]
-  }
+  "keystoreFile": "C:/keys/prismviewer.p12",
+  "keystorePwd": "你的密码",
+  "keyAlias": "prismviewer_key",
+  "keyPwd": "你的密码",
+  "appCertFile": "C:/keys/你的.cer",
+  "profileFile": "C:/keys/你的.p7b",
+  "signAlg": "SHA256withECDSA",
+  "compatibleVersion": "12"
 }
 ```
 
-> `storePassword` / `keyPassword` 需为 **DevEco Studio 加密后的密文**
-> （在 DevEco 中配置签名时会自动生成；命令行明文密码通常不被接受）。
+> `compatibleVersion` 取工程 `compatibleSdkVersion` 的 API 号（当前 `5.0.0(12)` → `12`）。
 
-### 4.4 出包
+### 4.4 出包与校验
 
 ```bash
-python tools/build_ascii.py
+python tools/build_ascii.py             # 构建 + 自动签名
+python tools/build_ascii.py --no-sign   # 只构建, 不签名
 ```
 
-签名成功后产物为 `entry-default-signed.hap`，即可上传到 AGC。
+产物中的 `entry-default-signed.hap` 即可上架。手动校验签名：
+
+```bash
+java -jar "$DEVECO_HOME/sdk/default/openharmony/toolchains/lib/hap-sign-tool.jar" \
+  verify-app -inFile build-output/entry-default-signed.hap \
+  -outCertChain out.cer -outProfile out.p7b
+# 期望输出: verify-app success
+```
+
+### 4.5 上传上架
+
+AGC → 你的应用 → **版本管理 → 上传软件包** → 选择 `entry-default-signed.hap`
+→ 填写版本说明 → **提交审核**。
 
 ---
 
@@ -175,7 +223,9 @@ python tools/build_ascii.py
 - [x] **ImGui 控制面板**（源码编译 + GLES3 后端 + 中文字体）
 - [x] **完整格式支持**：交叉编译并链接 **Assimp**（FBX / glTF / GLB / DAE / 3MF）、
       **laszip**（LAS / LAZ）、**pugixml**（E57）—— 与桌面版一致的全部 13 种格式
-- [x] 构建产出 `.hap`（**约 12.8 MB**，含内核 + ImGui + 全部格式）
+- [x] 构建产出 `.hap`（**约 13.6 MB** 签名后，含内核 + ImGui + 全部格式）
+- [x] **发布签名出包**：`signing.local.json` 配置 + 构建后自动调用 `hap-sign-tool.jar`
+      签名，产出可上架的 `entry-default-signed.hap`（`verify-app` 校验通过，见第 4 节）
 
 ### 待完成
 
@@ -183,7 +233,7 @@ python tools/build_ascii.py
 - [ ] IME 适配（替代 Win32 IMM）
 - [ ] 触摸手势（双指缩放/旋转）与 `OrbitCamera` 完整对接
 - [ ] 截图导出到应用沙箱
-- [ ] 发布签名（见第 4 节）
+- [ ] 上传 AGC 提交审核（材料已备齐，见第 4.5 节）
 
 ---
 
@@ -193,6 +243,10 @@ python tools/build_ascii.py
 |------|------------|
 | `Invalid project path` | 工程路径含中文 → 用 `tools/build_ascii.py` |
 | `hvigorw not found` | 设置 `DEVECO_HOME` 指向 command-line-tools |
-| `No signingConfig found` | 未配置签名 → 见第 4 节 |
+| `No signingConfig found` | **正常警告**（签名已移到脚本里做），只要末尾出现「已签名」即可 |
+| `00303116 ... less than 32` | 试图在 `build-profile.json5` 填明文密码 → hvigor 只认密文，改填 `signing.local.json` |
+| `verify-profile`/`verify-app` 报 `Param is not trusted` | 参数名错误（用 `-outFile`，不是 `-outProfile`） |
+| `keystore password was incorrect` | `signing.local.json` 里的密码与 `.p12` 不符 |
 | `EGLNativeWindowType` 类型错误 | OHOS 上该类型为整型，需 `reinterpret_cast` |
 | 安装失败 | 证书与设备/应用市场不匹配 → 用 AGC 签发证书 |
+| `Bundle name does not match AGC configuration` | `AppScope/app.json5` 的 `bundleName` 与 AGC Profile 不一致 |
