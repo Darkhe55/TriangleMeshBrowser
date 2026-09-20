@@ -24,3 +24,5 @@ harmony/.clangd/
 harmony/oh-package-lock.json5
 # 含本机 SDK 绝对路径, 不入库
 harmony/local.properties
+# 含签名密码, 不入库 (模板见 harmony/build-profile.json5.example)
+harmony/build-profile.json5

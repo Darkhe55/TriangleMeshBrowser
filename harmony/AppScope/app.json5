@@ -1,7 +1,7 @@
 {
   "app": {
-    "bundleName": "com.prism.trianglemesh",
-    "vendor": "prism",
+    "bundleName": "com.darkhe55.prismviewer",
+    "vendor": "darkhe55",
     "versionCode": 1000000,
     "versionName": "1.0.0",
     "icon": "$media:app_icon",
